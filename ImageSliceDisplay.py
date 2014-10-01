@@ -80,7 +80,8 @@ class MinMaxDialog(QDialog):
         self.mScMin.setSingleStep(1)
         self.mScMin.setMinimum(0)
         self.mScMin.setMaximum(100)
-        self.mScMin.setValue(0)
+        minVal = int((self.dMin-self.imgStat.min)/self.imgStat.range*100)
+        self.mScMin.setValue(minVal)
         lbMin = QLabel('Minimum', self)
         lbMin.setAlignment(Qt.AlignCenter)
         self.mScMax = QScrollBar(Qt.Horizontal, self)
@@ -88,7 +89,8 @@ class MinMaxDialog(QDialog):
         self.mScMax.setSingleStep(1)
         self.mScMax.setMinimum(0)
         self.mScMax.setMaximum(100)
-        self.mScMax.setValue(100)
+        maxVal = int((self.dMax-self.imgStat.min)/self.imgStat.range*100)
+        self.mScMax.setValue(maxVal)
         lbMax = QLabel('Maximum', self)
         lbMax.setAlignment(Qt.AlignCenter)
         # buttons
@@ -193,9 +195,10 @@ class ImageSliceDisplay(QWidget):
         self.setupUi()
         
     def updateStatus(self):
-        msg = '%d/%d; %d x %d' %\
+        msg = '%d/%d; %d x %d; min: %.6f, max: %.6f' %\
          (self.mScSlice.value()+1, self.imgStat.numSlices,\
-          self.imgStat.width, self.imgStat.height)
+          self.imgStat.width, self.imgStat.height,\
+          self.dMin, self.dMax)
         self.mLbStatus.setText(msg)
 
     def setupUi(self):
@@ -226,6 +229,7 @@ class ImageSliceDisplay(QWidget):
     def minMaxChange(self):
         self.dMin, self.dMax = self.mmDialog.results
         self.prepareQImage(self.mScSlice.value())
+        self.updateStatus()
         self.update()
 
     @pyqtSlot()
