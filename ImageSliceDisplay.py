@@ -3,13 +3,13 @@
 from PyQt4.QtGui import *
 from PyQt4.QtCore import Qt, pyqtSlot, SIGNAL
 import numpy as np
-from numpy import uint8
 
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
 from matplotlib.cm import register_cmap
 
 from _kwave_cm import _kwave_data
+from matplotlib.pyplot import hist
 
 
 # some constants
@@ -25,44 +25,95 @@ class DoubleClickableLabel(QLabel):
 
 class MinMaxDialog(QDialog):
     
-    def __init__(self, dMin, dMax, parent = None):
+    __pyqtSignals__ = ('minMaxChanged()')
+    
+    def __init__(self, dMin, dMax, imgStat, parent = None):
         QDialog.__init__(self, parent)
         self.dMin = dMin
         self.dMax = dMax
-        self.initUi()
+        self.imgStat = imgStat
+        self.setupUi()
+        # signals and slots
+        self.mBtnClose.clicked.connect(self.accept)
+        self.mScMin.valueChanged.connect(self.minMaxChange)
+        self.mScMax.valueChanged.connect(self.minMaxChange)
         
-    def initUi(self):
-        minLabel = QLabel(self.tr('Min'))
-        maxLabel = QLabel(self.tr('Max'))
-        self.minEdit = QLineEdit(str(self.dMin))
-        self.maxEdit = QLineEdit(str(self.dMax))
-        self.minEdit.setValidator(QDoubleValidator())
-        self.maxEdit.setValidator(QDoubleValidator())
-        self.mBtnOK = QPushButton(self.tr('OK'))
-        self.mBtnCancel = QPushButton(self.tr('Cancel'))
-        self.mBtnOK.clicked.connect(self.accept)
-        self.mBtnCancel.clicked.connect(self.reject)
+    def setupHistogram(self):
+        hist = list(self.imgStat.hist)
+        hist = [float(v)/max(hist) for v in hist]
+        width = len(hist)
+        height = len(hist)/2
+        self.mLbHist = QLabel(self)
+        self.mLbHist.setFixedSize(width, height)
+        self.mPixmapHist = QPixmap(width, height)
+        self.mPixmapHist.fill()
+        qp = QPainter()
+        qp.begin(self.mPixmapHist)
+        qp.setPen(QColor(100, 100, 100))
+        for ind in xrange(len(hist)):
+            qp.drawLine(ind,height,ind,(1-hist[ind])*height)
+        qp.end()
+        #self.mLbHist.setPixmap(self.mPixmapHist)
+        self.drawHistLabel()
+        
+    def drawHistLabel(self):
+        width = self.mPixmapHist.width()
+        height = self.mPixmapHist.height()
+        lp = int((self.dMin-self.imgStat.min)/self.imgStat.range*width)
+        rp = int((self.dMax-self.imgStat.min)/self.imgStat.range*width)
+        pixmap = QPixmap(width, height)
+        qp = QPainter()
+        qp.begin(pixmap)
+        qp.drawPixmap(0, 0, self.mPixmapHist)
+        qp.setPen(QColor(0, 0, 0))
+        qp.drawLine(lp,height,rp,0)
+        qp.end()
+        self.mLbHist.setPixmap(pixmap)
+        
+    def setupUi(self):
+        self.setWindowTitle('Min & Max')
+        # histogram
+        self.setupHistogram()
+        # sliders
+        self.mScMin = QScrollBar(Qt.Horizontal, self)
+        self.mScMin.setPageStep(1)
+        self.mScMin.setSingleStep(1)
+        self.mScMin.setMinimum(0)
+        self.mScMin.setMaximum(100)
+        self.mScMin.setValue(0)
+        lbMin = QLabel('Minimum', self)
+        lbMin.setAlignment(Qt.AlignCenter)
+        self.mScMax = QScrollBar(Qt.Horizontal, self)
+        self.mScMax.setPageStep(1)
+        self.mScMax.setSingleStep(1)
+        self.mScMax.setMinimum(0)
+        self.mScMax.setMaximum(100)
+        self.mScMax.setValue(100)
+        lbMax = QLabel('Maximum', self)
+        lbMax.setAlignment(Qt.AlignCenter)
+        # buttons
+        self.mBtnClose = QPushButton('Close', self)
         # layout
-        gLayout = QGridLayout()
-        gLayout.addWidget(minLabel, 1, 1)
-        gLayout.addWidget(maxLabel, 2, 1)
-        gLayout.addWidget(self.minEdit, 1, 2)
-        gLayout.addWidget(self.maxEdit, 2, 2)
-        hLayout = QHBoxLayout()
-        hLayout.addWidget(self.mBtnOK)
-        hLayout.addWidget(self.mBtnCancel)
-        vLayout = QVBoxLayout()
-        vLayout.addLayout(gLayout)
-        vLayout.addLayout(hLayout)
-        self.setLayout(vLayout)
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.mLbHist)
+        layout.addWidget(self.mScMin)
+        layout.addWidget(lbMin)
+        layout.addWidget(self.mScMax)
+        layout.addWidget(lbMax)
+        layout.addWidget(self.mBtnClose)
         
-    @pyqtSlot()
-    def accept(self):
-        self.dMin = float(self.minEdit.text())
-        self.dMax = float(self.maxEdit.text())
-        QDialog.accept(self)
+    @pyqtSlot(int)
+    def minMaxChange(self, int):
+        self.dMin = self.mScMin.value()/100.0*self.imgStat.range +\
+            self.imgStat.min
+        self.dMax = self.mScMax.value()/100.0*self.imgStat.range +\
+            self.imgStat.min
+        self.drawHistLabel()
+        self.mLbHist.update()
+        self.emit(SIGNAL('minMaxChanged()'))
         
-    def getResults(self):
+    @property
+    def results(self):
         return (self.dMin, self.dMax)
 
 
@@ -71,7 +122,7 @@ class ImageStat:
     evaluated attributes about image statistics
     '''
     
-    HIST_BIN_NUM = 256
+    HIST_BIN_NUM = 128
 
     def __init__(self, imgData):
         self.imgData = imgData
@@ -125,6 +176,10 @@ class ImageStat:
         if self._hist is None:
             self._hist, junk = np.histogram(self.imgData, self.HIST_BIN_NUM)
         return self._hist
+    
+    @property
+    def range(self):
+        return self.max - self.min
 
 
 class ImageSliceDisplay(QWidget):
@@ -166,16 +221,23 @@ class ImageSliceDisplay(QWidget):
         self.updateStatus()
         self.prepareQImage(val)
         self.update()
+        
+    @pyqtSlot()
+    def minMaxChange(self):
+        self.dMin, self.dMax = self.mmDialog.results
+        self.applyColormapStack()
+        self.prepareQImage(self.mScSlice.value())
+        self.update()
 
     @pyqtSlot()
     def onDisplayDoubleClicked(self):
-        mmDialog = MinMaxDialog(self.dMin, self.dMax, self)
-        ret = mmDialog.exec_()
-        if ret == 1:
-            (self.dMin, self.dMax) = mmDialog.getResults()
-            self.applyColormapStack()
-            self.prepareQImage(self.mScSlice.value())
-            self.update()
+        self.mmDialog = MinMaxDialog\
+            (self.dMin, self.dMax, self.imgStat, self)
+        self.connect(self.mmDialog, SIGNAL('minMaxChanged()'),
+                     self.minMaxChange)
+        self.mmDialog.exec_()
+        self.disconnect(self.mmDialog, SIGNAL('minMaxChanged()'),
+                        self.minMaxChange)
 
     def setInput(self, imgData, cmapName):
         self.imgData = imgData
@@ -226,7 +288,8 @@ def imshow(img, cmapName='gray'):
     in the Qt-powered ImageSliceDisplay widget.
     '''
     app = QApplication([])
-    #app.setStyle('windows')
+    #app.setStyle('plastique')
+    app.setStyle('windows')
     widget = ImageSliceDisplay()
     widget.setWindowTitle('Image Slice Display')
     widget.setInput(img, cmapName)
