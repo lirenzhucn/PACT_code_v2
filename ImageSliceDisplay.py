@@ -254,8 +254,6 @@ class ImageSliceDisplay(QWidget):
         self.update()
 
     def prepareQImage(self, ind):
-#         rgbaImg = self.rgbaStack[ind]
-#         assert(rgbaImg is not None)
         img = self.imgData[:,:,ind]
         scaledImg = (img - self.dMin) / (self.dMax - self.dMin)
         scaledImg[scaledImg < 0.0] = 0.0
@@ -267,10 +265,10 @@ class ImageSliceDisplay(QWidget):
         rgbaImg[:,:,1] = rgbaImg_temp[:,:,1]
         rgbaImg[:,:,2] = rgbaImg_temp[:,:,0]
         rgbaImg[:,:,3] = 255
-        self.img = QImage(rgbaImg.tostring(order='C'),\
+        self.qimg = QImage(rgbaImg.tostring(order='C'),\
                           rgbaImg.shape[1], rgbaImg.shape[0],\
                           QImage.Format_RGB32)
-        pix = QPixmap.fromImage(self.img)
+        pix = QPixmap.fromImage(self.qimg)
         self.mLbDisplay.setPixmap(pix.scaled(self.mLbDisplay.size(),\
                                              Qt.KeepAspectRatio,\
                                              Qt.SmoothTransformation))
