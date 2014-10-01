@@ -70,9 +70,8 @@ class ImageSliceDisplay(QWidget):
         self.dMin = 0.0
         self.dMax = 0.0
         self.data = None
-        #self.mLbDisplay = QLabel(self)
         self.mLbDisplay = DoubleClickableLabel(self)
-        self.mScSlice = QScrollBar(Qt.Vertical, self)
+        self.mScSlice = QSlider(Qt.Vertical, self)
         self.mScSlice.setMinimum(0)
         self.mScSlice.setMaximum(0)
         self.mScSlice.setSingleStep(1)
@@ -82,7 +81,6 @@ class ImageSliceDisplay(QWidget):
         layout.addWidget(self.mScSlice)
         # singal/slot pairs
         self.mScSlice.valueChanged.connect(self.onSliceChanged)
-        #self.mLbDisplay.doubleClicked.connect(self.onDisplayDoubleClicked)
         self.connect(self.mLbDisplay, SIGNAL('doubleClicked()'),
                      self.onDisplayDoubleClicked)
 
@@ -149,6 +147,7 @@ def imshow(img, cmapName='gray'):
     in the Qt-powered ImageSliceDisplay widget.
     '''
     app = QApplication([])
+    app.setStyle('windows')
     widget = ImageSliceDisplay()
     widget.setWindowTitle('Image Slice Display')
     widget.setInput(img, cmapName)
