@@ -71,12 +71,12 @@ class ImageSliceDisplay(QWidget):
         self.dMax = 0.0
         self.data = None
         self.mLbDisplay = DoubleClickableLabel(self)
-        self.mScSlice = QSlider(Qt.Vertical, self)
+        self.mScSlice = QSlider(Qt.Horizontal, self)
         self.mScSlice.setMinimum(0)
         self.mScSlice.setMaximum(0)
         self.mScSlice.setSingleStep(1)
         # layout
-        layout = QHBoxLayout(self)
+        layout = QVBoxLayout(self)
         layout.addWidget(self.mLbDisplay)
         layout.addWidget(self.mScSlice)
         # singal/slot pairs
