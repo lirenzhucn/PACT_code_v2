@@ -11,8 +11,11 @@ from matplotlib.cm import register_cmap
 
 from _kwave_cm import _kwave_data
 
+
+# some constants
 kwave_cm = ListedColormap(_kwave_data, name='kwave')
 register_cmap(name='kwave', cmap=kwave_cm)
+
 
 class DoubleClickableLabel(QLabel):
     """A QLabel that sends out doubleClicked signal"""
@@ -67,6 +70,8 @@ class ImageStat:
     '''Just like PIL's ImageStat.Stat class, this class provides lazily
     evaluated attributes about image statistics
     '''
+    
+    HIST_BIN_NUM = 256
 
     def __init__(self, imgData):
         self.imgData = imgData
@@ -75,6 +80,7 @@ class ImageStat:
         self._numSlices = None
         self._width = None
         self._height = None
+        self._hist = None
 
     @property
     def extrema(self):
@@ -113,6 +119,12 @@ class ImageStat:
         if self._height is None:
             self._height = self.imgData.shape[0]
         return self._height
+    
+    @property
+    def hist(self):
+        if self._hist is None:
+            self._hist, junk = np.histogram(self.imgData, self.HIST_BIN_NUM)
+        return self._hist
 
 
 class ImageSliceDisplay(QWidget):
@@ -124,24 +136,34 @@ class ImageSliceDisplay(QWidget):
         self.imgData = None
         self.imgStat = None
         self.setupUi()
+        
+    def updateStatus(self):
+        msg = '%d/%d; %d x %d' %\
+         (self.mScSlice.value()+1, self.imgStat.numSlices,\
+          self.imgStat.width, self.imgStat.height)
+        self.mLbStatus.setText(msg)
 
     def setupUi(self):
+        self.mLbStatus = QLabel(self)
         self.mLbDisplay = DoubleClickableLabel(self)
-        self.mScSlice = QSlider(Qt.Horizontal, self)
+        self.mScSlice = QScrollBar(Qt.Horizontal, self)
+        self.mScSlice.setPageStep(1)
         self.mScSlice.setMinimum(0)
         self.mScSlice.setMaximum(0)
         self.mScSlice.setSingleStep(1)
         # layout
         layout = QVBoxLayout(self)
+        layout.addWidget(self.mLbStatus)
         layout.addWidget(self.mLbDisplay)
         layout.addWidget(self.mScSlice)
-        # singal/slot pairs
+        # signal/slot pairs
         self.mScSlice.valueChanged.connect(self.onSliceChanged)
         self.connect(self.mLbDisplay, SIGNAL('doubleClicked()'),
                      self.onDisplayDoubleClicked)
 
     @pyqtSlot(int)
     def onSliceChanged(self, val):
+        self.updateStatus()
         self.prepareQImage(val)
         self.update()
 
@@ -158,8 +180,6 @@ class ImageSliceDisplay(QWidget):
     def setInput(self, imgData, cmapName):
         self.imgData = imgData
         self.imgStat = ImageStat(imgData)
-        #self.dMin = np.amin(imgData)
-        #self.dMax = np.amax(imgData)
         self.dMin, self.dMax = self.imgStat.extrema
         self.cmapName = cmapName
         # setup scroll bar
@@ -168,6 +188,7 @@ class ImageSliceDisplay(QWidget):
         # setup Label size
         self.mLbDisplay.setFixedSize(imgData.shape[1], imgData.shape[0])
         # setup display image
+        self.updateStatus()
         self.applyColormapStack()
         self.prepareQImage(0)
         self.update()
@@ -205,7 +226,7 @@ def imshow(img, cmapName='gray'):
     in the Qt-powered ImageSliceDisplay widget.
     '''
     app = QApplication([])
-    app.setStyle('windows')
+    #app.setStyle('windows')
     widget = ImageSliceDisplay()
     widget.setWindowTitle('Image Slice Display')
     widget.setInput(img, cmapName)
