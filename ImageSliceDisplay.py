@@ -225,7 +225,6 @@ class ImageSliceDisplay(QWidget):
     @pyqtSlot()
     def minMaxChange(self):
         self.dMin, self.dMax = self.mmDialog.results
-        self.applyColormapStack()
         self.prepareQImage(self.mScSlice.value())
         self.update()
 
@@ -251,28 +250,23 @@ class ImageSliceDisplay(QWidget):
         self.mLbDisplay.setFixedSize(imgData.shape[1], imgData.shape[0])
         # setup display image
         self.updateStatus()
-        self.applyColormapStack()
         self.prepareQImage(0)
         self.update()
-        
-    def applyColormapStack(self):
-        cmap = plt.get_cmap(self.cmapName)
-        nSlices = self.imgData.shape[2]
-        scaledData = (self.imgData - self.dMin) / (self.dMax - self.dMin)
-        scaledData[scaledData < 0.0] = 0
-        scaledData[scaledData > 1.0] = 1.0
-        self.rgbaStack = [None] * nSlices
-        for ind in xrange(nSlices):
-            rgbaImg = cmap(scaledData[:,:,ind], bytes=True)
-            self.rgbaStack[ind] = np.zeros(rgbaImg.shape, dtype=np.uint8)
-            self.rgbaStack[ind][:,:,0] = rgbaImg[:,:,2]
-            self.rgbaStack[ind][:,:,1] = rgbaImg[:,:,1]
-            self.rgbaStack[ind][:,:,2] = rgbaImg[:,:,0]
-            self.rgbaStack[ind][:,:,3] = 255
 
     def prepareQImage(self, ind):
-        rgbaImg = self.rgbaStack[ind]
-        assert(rgbaImg is not None)
+#         rgbaImg = self.rgbaStack[ind]
+#         assert(rgbaImg is not None)
+        img = self.imgData[:,:,ind]
+        scaledImg = (img - self.dMin) / (self.dMax - self.dMin)
+        scaledImg[scaledImg < 0.0] = 0.0
+        scaledImg[scaledImg > 1.0] = 1.0
+        cmap = plt.get_cmap(self.cmapName)
+        rgbaImg_temp = cmap(scaledImg, bytes=True)
+        rgbaImg = np.zeros(rgbaImg_temp.shape, dtype=np.uint8)
+        rgbaImg[:,:,0] = rgbaImg_temp[:,:,2]
+        rgbaImg[:,:,1] = rgbaImg_temp[:,:,1]
+        rgbaImg[:,:,2] = rgbaImg_temp[:,:,0]
+        rgbaImg[:,:,3] = 255
         self.img = QImage(rgbaImg.tostring(order='C'),\
                           rgbaImg.shape[1], rgbaImg.shape[0],\
                           QImage.Format_RGB32)
