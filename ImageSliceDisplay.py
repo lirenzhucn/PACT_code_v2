@@ -63,13 +63,69 @@ class MinMaxDialog(QDialog):
         return (self.dMin, self.dMax)
 
 
+class ImageStat:
+    '''Just like PIL's ImageStat.Stat class, this class provides lazily
+    evaluated attributes about image statistics
+    '''
+
+    def __init__(self, imgData):
+        self.imgData = imgData
+        self._min = None
+        self._max = None
+        self._numSlices = None
+        self._width = None
+        self._height = None
+
+    @property
+    def extrema(self):
+        return (self.min, self.max)
+
+    @property
+    def min(self):
+        if self._min is None:
+            self._min = np.amin(self.imgData)
+        return self._min
+
+    @property
+    def max(self):
+        if self._max is None:
+            self._max = np.amax(self.imgData)
+        return self._max
+
+    @property
+    def numSlices(self):
+        if self._numSlices is None:
+            self._numSlices = self.imgData.shape[2]
+        return self._numSlices
+
+    @property
+    def imgSize(self):
+        return (self.width, self.height)
+
+    @property
+    def width(self):
+        if self._width is None:
+            self._width = self.imgData.shape[1]
+        return self._width
+
+    @property
+    def height(self):
+        if self._height is None:
+            self._height = self.imgData.shape[0]
+        return self._height
+
+
 class ImageSliceDisplay(QWidget):
     
     def __init__(self, parent = None):
         QWidget.__init__(self, parent)
         self.dMin = 0.0
         self.dMax = 0.0
-        self.data = None
+        self.imgData = None
+        self.imgStat = None
+        self.setupUi()
+
+    def setupUi(self):
         self.mLbDisplay = DoubleClickableLabel(self)
         self.mScSlice = QSlider(Qt.Horizontal, self)
         self.mScSlice.setMinimum(0)
@@ -99,16 +155,18 @@ class ImageSliceDisplay(QWidget):
             self.prepareQImage(self.mScSlice.value())
             self.update()
 
-    def setInput(self, data, cmapName):
-        self.data = data
-        self.dMin = np.amin(data)
-        self.dMax = np.amax(data)
+    def setInput(self, imgData, cmapName):
+        self.imgData = imgData
+        self.imgStat = ImageStat(imgData)
+        #self.dMin = np.amin(imgData)
+        #self.dMax = np.amax(imgData)
+        self.dMin, self.dMax = self.imgStat.extrema
         self.cmapName = cmapName
         # setup scroll bar
-        self.mScSlice.setMaximum(data.shape[2] - 1)
+        self.mScSlice.setMaximum(imgData.shape[2] - 1)
         self.mScSlice.setValue(0)
         # setup Label size
-        self.mLbDisplay.setFixedSize(data.shape[1], data.shape[0])
+        self.mLbDisplay.setFixedSize(imgData.shape[1], imgData.shape[0])
         # setup display image
         self.applyColormapStack()
         self.prepareQImage(0)
@@ -116,8 +174,8 @@ class ImageSliceDisplay(QWidget):
         
     def applyColormapStack(self):
         cmap = plt.get_cmap(self.cmapName)
-        nSlices = self.data.shape[2]
-        scaledData = (self.data - self.dMin) / (self.dMax - self.dMin)
+        nSlices = self.imgData.shape[2]
+        scaledData = (self.imgData - self.dMin) / (self.dMax - self.dMin)
         scaledData[scaledData < 0.0] = 0
         scaledData[scaledData > 1.0] = 1.0
         self.rgbaStack = [None] * nSlices
