@@ -19,28 +19,34 @@ class Options:
 
     def __init__(self, entries):
         self.__dict__.update(entries)
+        
 
+class UnpackUtilities:
+    '''Provide a series of statistic methods for Unpack classes'''
 
-class Unpack:
+    @staticmethod
+    def readBinFile(filePath, dtype, packSize, totFirings, numExpr):
+        try:
+            f = open(filePath)
+            tempData = np.fromfile(f, dtype=dtype)
+            f.close()
+            return tempData.reshape((6*totFirings*numExpr,
+                                     packSize)).T
+        except:
+            return None
 
-    def __init__(self, opts):
-        assert(isinstance(opts, Options))
-        self.opts = opts
-        if not hasattr(self.opts, 'dest_ext'):
-            self.opts.dest_ext = 'unpack'
-        if not hasattr(self.opts, 'EXP_START'):
-            self.opts.EXP_START = -1
-            self.opts.EXP_END = -1
-            self.opts.NUM_EXP = -1
-        if not hasattr(self.opts, 'dtype'):
-            self.opts.dtype = '<u4'
-        # normalize and expand the paths
-        self.opts.src_dir = normpath(expanduser(self.opts.src_dir))
-        self.opts.dest_dir =\
-                normpath(expanduser(join(self.opts.src_dir,\
-                                         self.opts.dest_ext)))
+    @staticmethod
+    def saveChnData(chnData, chnDataAll, destDir, ind):
+        fileName = 'chndata_%d.h5' % (ind)
+        outputPath = join(destDir, fileName)
+        print 'Saving data to ' + outputPath
+        f = h5py.File(outputPath, 'w')
+        f['chndata'] = chnData
+        f['chndata_all'] = chnDataAll
+        f.close()
 
-    def renameUnindexedFile(self, srcDir):
+    @staticmethod
+    def renameUnindexedFile(srcDir):
         print 'Renaming unindexed raw data files in %s' % (srcDir)
         pTarget = re.compile(r'Board([0-9]+)Experiment([0-9]+)' +
                              r'TotalFiring([0-9]+)_Pack.bin')
@@ -71,25 +77,135 @@ class Unpack:
             print '\t->' + destFilePath
             rename(srcFilePath, destFilePath)
         return renameIndex
+        
+        
+class UnpackScan(UnpackUtilities):
+    '''Extractor for averaged/scanned data set'''
+    
+    def __init__(self, opts):
+        assert(isinstance(opts, Options))
+        self.opts = opts
+        if not hasattr(self.opts, 'dest_ext'):
+            self.opts.dest_ext = 'unpack'
+        if not hasattr(self.opts, 'dtype'):
+            self.opts.dtype = '<u4'
+        # normalize and expand the paths
+        self.opts.src_dir = normpath(expanduser(self.opts.src_dir))
+        self.opts.dest_dir =\
+                normpath(expanduser(join(self.opts.src_dir,\
+                                         self.opts.dest_ext)))
 
-    def readBinFile(self, filePath, dtype, packSize, totFirings, numExpr):
-        f = open(filePath)
-        if f is None:
-            print 'File not found: ' + filePath
-            return None
-        tempData = np.fromfile(f, dtype=dtype)
-        f.close()
-        return tempData.reshape((6*totFirings*numExpr,
-                                 packSize)).T
+    def readChannelData(self):
+        # variable extraction
+        startInd = self.opts.EXP_START
+        endInd = self.opts.EXP_END
+        srcDir = self.opts.src_dir
+        destDir = self.opts.dest_dir
+        packSize = self.opts.PackSize
+        totFirings = self.opts.TotFirings
+        numBoards = self.opts.NumBoards
+        dataBlockSize = self.opts.DataBlockSize
+        numElements = self.opts.NumElements
+        # list files
+        fileNameList = listdir(srcDir)
+        chnDataList = [None] * (endInd - startInd + 1)
+        for ind in xrange(startInd, endInd+1):
+            print 'Info: unpacking index %d...' % (ind)
+            packData = [] # list of pack data
+            # search through file list to find "experiment" (z step)
+            # number for this particular index
+            pattern = re.compile(r'Board([0-9]+)' +
+                                 r'Experiment([0-9]+)TotalFiring' +
+                                 str(totFirings) + '_Pack_' +
+                                 str(ind) + '.bin')
+            numExpr = -1
+            for fileName in fileNameList:
+                matchObj = pattern.match(fileName)
+                if matchObj is not None:
+                    _numExpr = int(matchObj.group(2))
+                    if _numExpr != numExpr and numExpr != -1:
+                        print 'Warning: multiple' +\
+                                '\"experiment\" numbers found!' +\
+                                ' Last found will be used.'
+                    numExpr = _numExpr
+            if numExpr == -1:
+                print 'Warning: no file found. Skipping index %d' % (ind)
+                chnDataList[ind-startInd] = None
+                continue
+            for boardId in xrange(numBoards):
+                boardName = self.opts.BoardName[boardId]
+                fileName = '%sExperiment%dTotalFiring%d_Pack_%d.bin' %\
+                        (boardName, numExpr, totFirings, ind)
+                filePath = join(srcDir, fileName)
+                tempData = self.readBinFile(filePath, self.opts.dtype,\
+                                            packSize, totFirings, numExpr)
+                if tempData is not None:
+                    tempData = tempData[0:2*dataBlockSize,:]
+                packData.append(tempData)
+            if any([x is None for x in packData]):
+                print 'Warning: broken raw files. Skipping index %d' % (ind)
+                chnDataList[ind-startInd] = None
+                continue
+            # interpret raw data into channel format
+            # see daq_loop.c for original implementation
+            chanMap = generateChanMap(numElements)
+            chnData, chnDataAll = daq_loop(packData[0], packData[1],\
+                                           chanMap, numExpr)
+            # fix bad channels
+            chnData = -chnData/numExpr
+            badChannels = [idx-1 for idx in self.opts.BadChannels]
+            chnData[:, badChannels] = - chnData[:, badChannels]
+            # save it to the list
+            chnDataList[ind - startInd] = chnData
+        sizeOfAxis = lambda x, ind: (x.shape[ind] if x is not None else 0)
+        timeSeqLenList = [sizeOfAxis(x,0) for x in chnDataList]
+        detectorNumList = [sizeOfAxis(x,1) for x in chnDataList]
+        timeSeqLen = max(timeSeqLenList)
+        detectorNum = max(detectorNumList)
+        numZStep = len(chnDataList)
+        chnData3D = np.zeros((timeSeqLen, detectorNum, numZStep),
+                             order='F', dtype=np.double)
+        for idx in xrange(numZStep):
+            chnData = chnDataList[idx]
+            if chnData is not None:
+                chnData3D[:,:,idx] = chnData
+        chnData = np.mean(chnData3D, axis=2)
+        # store indices in object
+        self.startInd = startInd
+        self.endInd = endInd
+        # save data to object members
+        self.chnData = chnData
+        self.chnData3D = chnData3D
 
-    def saveChnData(self, chnData, chnDataAll, destDir, ind):
-        fileName = 'chndata_%d.h5' % (ind)
-        outputPath = join(destDir, fileName)
-        print 'Saving data to ' + outputPath
+    def unpack(self):
+        self.readChannelData()
+        filename = 'scan_%d_%d.h5' % (self.startInd, self.endInd)
+        outputPath = join(self.opts.dest_dir, filename)
+        print 'Saving file to %s ...' % (outputPath)
         f = h5py.File(outputPath, 'w')
-        f['chndata'] = chnData
-        f['chndata_all'] = chnDataAll
+        f['chndata'] = self.chnData
+        f['chndata_all'] = self.chnData3D
         f.close()
+
+
+class Unpack(UnpackUtilities):
+
+    def __init__(self, opts):
+        assert(isinstance(opts, Options))
+        self.opts = opts
+        if not hasattr(self.opts, 'dest_ext'):
+            self.opts.dest_ext = 'unpack'
+        if not hasattr(self.opts, 'EXP_START'):
+            self.opts.EXP_START = -1
+            self.opts.EXP_END = -1
+            self.opts.NUM_EXP = -1
+        if not hasattr(self.opts, 'dtype'):
+            self.opts.dtype = '<u4'
+        # normalize and expand the paths
+        self.opts.src_dir = normpath(expanduser(self.opts.src_dir))
+        self.opts.dest_dir =\
+                normpath(expanduser(join(self.opts.src_dir,\
+                                         self.opts.dest_ext)))
 
     def readChannelData(self):
         # variable extraction
@@ -139,8 +255,12 @@ class Unpack:
                 filePath = join(srcDir, fileName)
                 tempData = self.readBinFile(filePath, self.opts.dtype,\
                                             packSize, totFirings, numExpr)
-                tempData = tempData[0:2*dataBlockSize,:]
+                if tempData is not None:
+                    tempData = tempData[0:2*dataBlockSize,:]
                 packData.append(tempData)
+            if any([x is None for x in packData]):
+                print 'Warning: broken raw files. Skipping index %d' % (ind)
+                continue
             # interpret raw data into channel format
             # see daq_loop.c for original implementation
             chanMap = generateChanMap(numElements)
@@ -152,7 +272,7 @@ class Unpack:
             badChannels = [idx-1 for idx in self.opts.BadChannels]
             chnData[:, badChannels] = - chnData[:, badChannels]
             chnDataAll = np.reshape(chnDataAll,\
-                                    (dataBlockSize, numElements, numExpr),
+                                    (dataBlockSize, numElements, numExpr),\
                                     order='F')
             chnDataAll[:, badChannels, :] = -chnDataAll[:, badChannels, :]
 
