@@ -119,6 +119,21 @@ def unpack(src_dir, ind=-1):
     unpack.unpack()
 
 
+@argh.arg('src_dir', type=str,\
+           help='path to the source data directory')
+@argh.arg('min_ind', type=int, help='starting index')
+@argh.arg('max_ind', type=int, help='ending index')
+def unpack_scan(src_dir, min_ind, max_ind):
+    print 'start unpacking...'
+    opts = Options(UNPACK_OPTS_DICT)
+    opts.src_dir = src_dir
+    opts.EXP_START = min_ind
+    opts.EXP_END = max_ind
+    opts.NUM_EXP = -1
+    unpack = UnpackScan(opts)
+    unpack.unpack()
+
+
 if __name__ == '__main__':
-    argh.dispatch_commands((unpack, reconstruct))
+    argh.dispatch_commands((unpack, unpack_scan, reconstruct))
 
