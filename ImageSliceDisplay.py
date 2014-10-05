@@ -294,17 +294,25 @@ def imshow(img, cmapName='gray'):
 
 
 import skimage.io._plugins.freeimage_plugin as fi
+import pyfits
 import argh
+import os.path
 
 @argh.arg('input_file', type=str, help='path to input image file')
 @argh.arg('cm_name', type=str, help='colormap name')
 def main(input_file, cm_name):
-    print 'Testing imshow function with a predefined input'
-    imgList = fi.read_multipage(input_file)
-    imgData = np.zeros((imgList[0].shape[0], imgList[0].shape[1],\
-                        len(imgList)), dtype=np.double)
-    for ind in xrange(len(imgList)):
-        imgData[:,:,ind] = imgList[ind]
+    junk, ext = os.path.splitext(input_file)
+    if ext == '.tiff':
+        imgList = fi.read_multipage(input_file)
+        imgData = np.zeros((imgList[0].shape[0], imgList[0].shape[1],\
+                           len(imgList)), dtype=np.double)
+        for ind in xrange(len(imgList)):
+            imgData[:,:,ind] = imgList[ind]
+    elif ext == '.fits':
+        imgData = pyfits.getdata(input_file, 0, header=False)
+    else:
+        print 'file format %s not supported' % (ext)
+        return
     imshow(imgData, cm_name)
 
 if __name__ == '__main__':
