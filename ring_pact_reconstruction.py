@@ -311,50 +311,53 @@ class Unpack(UnpackUtilities):
                          self.opts.dest_dir, self.startInd)
 
 
-def findDelayIdx(paData, fs):
-    """
-    find the delay value from the first few samples on A-lines
-    """
-    nSteps = paData.shape[1]
-    refImpulse = paData[0:100,:]
-    refImpulseEnv = np.abs(spsig.hilbert(refImpulse, axis=0))
-    impuMax = np.amax(refImpulseEnv, axis=0)
-    # to be consistent with the MATLAB's implementation ddof=1
-    tempStd = np.std(refImpulseEnv, axis=0, ddof=1)
-    delayIdx = -np.ones(nSteps)*18/fs
-    for n in xrange(nSteps):
-        if (impuMax[n] > 3.0*tempStd[n] and impuMax[n] > 0.1):
-            tmpThresh = 2*tempStd[n]
-            m1 = 14
-            for ii in xrange(14,50):
-                if (refImpulse[ii-1,n] > -tmpThresh and\
-                    refImpulse[ii,n] < -tmpThresh):
-                    m1 = ii
-                    break
-            m2 = m1
-            m3 = m1
-            for ii in xrange(9,m1+1):
-                if (refImpulse[ii-1,n] < tmpThresh and\
-                    refImpulse[ii,n] > tmpThresh):
-                    m2 = ii
-                if (refImpulse[ii-1,n] > tmpThresh and\
-                    refImpulse[ii,n] < tmpThresh):
-                    m3 = ii
-            delayIdx[n] = -float(m2+m3+2)/2.0/fs
-    return delayIdx
+class ReconUtility:
 
+    @staticmethod
+    def findDelayIdx(paData, fs):
+        """
+        find the delay value from the first few samples on A-lines
+        """
+        nSteps = paData.shape[1]
+        refImpulse = paData[0:100,:]
+        refImpulseEnv = np.abs(spsig.hilbert(refImpulse, axis=0))
+        impuMax = np.amax(refImpulseEnv, axis=0)
+        # to be consistent with the MATLAB's implementation ddof=1
+        tempStd = np.std(refImpulseEnv, axis=0, ddof=1)
+        delayIdx = -np.ones(nSteps)*18/fs
+        for n in xrange(nSteps):
+            if (impuMax[n] > 3.0*tempStd[n] and impuMax[n] > 0.1):
+                tmpThresh = 2*tempStd[n]
+                m1 = 14
+                for ii in xrange(14,50):
+                    if (refImpulse[ii-1,n] > -tmpThresh and\
+                        refImpulse[ii,n] < -tmpThresh):
+                        m1 = ii
+                        break
+                m2 = m1
+                m3 = m1
+                for ii in xrange(9,m1+1):
+                    if (refImpulse[ii-1,n] < tmpThresh and\
+                        refImpulse[ii,n] > tmpThresh):
+                        m2 = ii
+                    if (refImpulse[ii-1,n] > tmpThresh and\
+                        refImpulse[ii,n] < tmpThresh):
+                        m3 = ii
+                delayIdx[n] = -float(m2+m3+2)/2.0/fs
+        return delayIdx
 
-def update_progress(current, total):
-    """update progress bar"""
-    TOTAL_INDICATOR_NUM = 50
-    CHAR_INDICATOR = '#'
-    progress = int(float(current)/total * 100)
-    numIndicator = int(float(current)/total * TOTAL_INDICATOR_NUM)
-    sys.stdout.write('\r{:>3}% [{:<50}]'.format\
-                     (progress, CHAR_INDICATOR*numIndicator))
-    sys.stdout.flush()
-    if current == total:
-        print '\tDone'
+    @staticmethod
+    def updateProgress(current, total):
+        """update progress bar"""
+        TOTAL_INDICATOR_NUM = 50
+        CHAR_INDICATOR = '#'
+        progress = int(float(current)/total * 100)
+        numIndicator = int(float(current)/total * TOTAL_INDICATOR_NUM)
+        sys.stdout.write('\r{:>3}% [{:<50}]'.format\
+                         (progress, CHAR_INDICATOR*numIndicator))
+        sys.stdout.flush()
+        if current == total:
+            print '\tDone'
 
 
 class Reconstruction2D:
@@ -394,7 +397,7 @@ class Reconstruction2D:
         xReceive = np.cos(detectorAngle)*R
         yReceive = np.sin(detectorAngle)*R
         # use the fisrt z step data to calibrate DAQ delay
-        delayIdx = findDelayIdx(paData[:,:,0], fs)
+        delayIdx = ReconUtility.findDelayIdx(paData[:,:,0], fs)
         # find index map and angular weighting for backprojection
         print 'Calculating geometry dependent back-projection paramters'
         (self.idxAll, self.angularWeight, self.totalAngularWeight) =\
@@ -431,7 +434,7 @@ class Reconstruction2D:
                 print 'WARNING: None returned as 2D reconstructed image!'
             paImg = paImg/self.totalAngularWeight
             self.reImg[:,:,z] = paImg
-            update_progress(z+1, zSteps)
+            ReconUtility.updateProgress(z+1, zSteps)
         # return the reconstructed image
         #return self.reImg
 
@@ -482,7 +485,7 @@ class Reconstruction2DUnipolar(Reconstruction2D):
                 paImg = self.singleSector(paSlice, startInd)
                 reImgSlice = reImgSlice + paImg
             self.reImg[:,:,z] = reImgSlice
-            update_progress(z+1, self.zSteps)
+            ReconUtility.updateProgress(z+1, self.zSteps)
 
     def reconstruct(self, paData):
         self.initRecon(paData)
