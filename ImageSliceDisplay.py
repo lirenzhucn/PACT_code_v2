@@ -310,6 +310,8 @@ def main(input_file, cm_name):
             imgData[:,:,ind] = imgList[ind]
     elif ext == '.fits':
         imgData = pyfits.getdata(input_file, 0, header=False)
+    elif ext == '.npy':
+        imgData = np.load(input_file)
     else:
         print 'file format %s not supported' % (ext)
         return
