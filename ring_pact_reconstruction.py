@@ -446,7 +446,7 @@ class Reconstruction2D:
 
 class Reconstruction2DUnipolar(Reconstruction2D):
 
-    def __init__(self, opts, sectorSize=64, sectorStep=32):
+    def __init__(self, opts, sectorSize=64, sectorStep=64):
         Reconstruction2D.__init__(self, opts)
         self.sectorSize = sectorSize
         self.sectorStep = sectorStep
