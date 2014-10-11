@@ -35,7 +35,8 @@ UNPACK_OPTS_DICT = {
 
 class ConfigDialog(CommonDialog):
     def __init__(self, optsDict):
-        self.result = optsDict
+        self.resultDict = optsDict
+        self.result = None
         # list of entry widgets
         self.entries = []
         self.keys = []
@@ -43,9 +44,9 @@ class ConfigDialog(CommonDialog):
 
     def body(self, master):
         rowIdx = 0
-        self.keys = sorted(self.result.keys())
+        self.keys = sorted(self.resultDict.keys())
         for key in self.keys:
-            val = self.result[key]
+            val = self.resultDict[key]
             Label(master, text=key).grid(row=rowIdx)
             self.entries.append(NumberEntry(master))
             self.entries[rowIdx].grid(row=rowIdx, column=1)
@@ -62,10 +63,11 @@ class ConfigDialog(CommonDialog):
             resultDict[key] = entry.getVal()
         self.result = Options(resultDict)
 
-def getReconOptsTk():
-    cfgDlg = ConfigDialog(RECON_OPTS_DICT)
-    cfgDlg.mainloop()
-    return cfgDlg.result
+    @staticmethod
+    def getReconOptsTk():
+        cfgDlg = ConfigDialog(RECON_OPTS_DICT)
+        cfgDlg.mainloop()
+        return cfgDlg.result
 
 
 import json
@@ -79,7 +81,10 @@ import skimage.io._plugins.freeimage_plugin as fi
 @argh.arg('-bp', '--bipolar', help='whether use bipolar recon.')
 def reconstruct(input_file, out_format='fits', bipolar=False):
     print 'start reconstruction...'
-    opts = getReconOptsTk()
+    opts = ConfigDialog.getReconOptsTk()
+    if opts is None:
+        print 'User cancelled reconstruction...'
+        return
     if bipolar:
         recon = Reconstruction2D(opts)
     else:
