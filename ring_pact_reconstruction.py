@@ -461,7 +461,7 @@ class Reconstruction2DUnipolar(Reconstruction2D):
                                 order='F')
         temp = np.copy(paSlice[:,indRange], order='F')
         paImg = recon_loop(temp, idxAll, angularWeight,\
-                           self.nPixelx, self.nPixely, self.sectorSize)
+                           self.nPixelx, self.nPixely, 2*self.sectorSize)
         angle = self.opts.iniAngle - 90.0 +\
                 (startInd + self.sectorSize/2.0) * 360.0 / self.nSteps
         paImg = spnd.interpolation.rotate(paImg, -angle, reshape=False)
