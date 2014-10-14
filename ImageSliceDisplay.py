@@ -23,6 +23,7 @@ class DoubleClickableLabel(QLabel):
     def mouseDoubleClickEvent(self, event):
         self.emit(SIGNAL('doubleClicked()'))
 
+
 class MinMaxDialog(QDialog):
     
     __pyqtSignals__ = ('minMaxChanged()')
