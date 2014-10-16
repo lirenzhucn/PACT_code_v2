@@ -16,4 +16,3 @@ UNPACK_SPEEDUP_MODULE = Extension('unpack_speedup', ['unpack_speedup.pyx'],
 # run the setup
 setup(ext_modules=[RECON_LOOP_MODULE])
 setup(ext_modules=cythonize(UNPACK_SPEEDUP_MODULE))
-
