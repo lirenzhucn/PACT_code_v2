@@ -3,7 +3,6 @@
 from Tkinter import *
 from TkCommonDialog import CommonDialog, NumberEntry
 from ring_pact_reconstruction import *
-from collections import OrderedDict
 import argh
 
 RECON_OPTS_DICT = {
@@ -30,10 +29,12 @@ UNPACK_OPTS_DICT = {
     'TotFirings': 8,
     'NumElements': 512,
     'NumSegments': 1,
-    'BadChannels': [21,22,23,24,85,86,87,88],
+    'BadChannels': [21, 22, 23, 24, 85, 86, 87, 88],
 }
 
+
 class ConfigDialog(CommonDialog):
+
     def __init__(self, optsDict):
         self.resultDict = optsDict
         self.result = None
@@ -70,11 +71,11 @@ class ConfigDialog(CommonDialog):
         return cfgDlg.result
 
 
-import json
 import h5py
 import pyfits
 import os.path
 import skimage.io._plugins.freeimage_plugin as fi
+
 
 @argh.arg('input-file', type=str, help='input raw data file')
 @argh.arg('-of', '--out-format', type=str, help='output format')
@@ -103,9 +104,9 @@ def reconstruct(input_file, out_format='fits', bipolar=False):
     elif out_format == 'tiff':
         outfile = basename + '_reImg.tiff'
         print 'saving image data to ' + outfile
-        imageList = [reImg[:,:,i] for i in xrange(reImg.shape[2])]
+        imageList = [reImg[:, :, i] for i in xrange(reImg.shape[2])]
         fi.write_multipage(imageList, outfile)
-    else: # including 'fits'
+    else:  # including 'fits'
         outfile = basename + '_reImg.fits'
         print 'saving image data to ' + outfile
         hdu = pyfits.PrimaryHDU(reImg)
@@ -124,8 +125,8 @@ def unpack(src_dir, ind=-1):
     unpack.unpack()
 
 
-@argh.arg('src_dir', type=str,\
-           help='path to the source data directory')
+@argh.arg('src_dir', type=str,
+          help='path to the source data directory')
 @argh.arg('min_ind', type=int, help='starting index')
 @argh.arg('max_ind', type=int, help='ending index')
 def unpack_scan(src_dir, min_ind, max_ind):
@@ -141,4 +142,3 @@ def unpack_scan(src_dir, min_ind, max_ind):
 
 if __name__ == '__main__':
     argh.dispatch_commands((unpack, unpack_scan, reconstruct))
-

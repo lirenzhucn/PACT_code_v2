@@ -3,4 +3,5 @@ build
 *.pyc
 *.so
 *.swp
+.ropeproject
 
