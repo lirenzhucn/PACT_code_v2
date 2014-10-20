@@ -79,8 +79,10 @@ import skimage.io._plugins.freeimage_plugin as fi
 
 @argh.arg('input-file', type=str, help='input raw data file')
 @argh.arg('-of', '--out-format', type=str, help='output format')
+@argh.arg('-8', '--eight-bit',
+          help='save 8-bit version for display too.')
 @argh.arg('-bp', '--bipolar', help='whether use bipolar recon.')
-def reconstruct(input_file, out_format='fits', bipolar=False):
+def reconstruct(input_file, out_format='tiff', eight_bit=False, bipolar=False):
     print 'start reconstruction...'
     opts = ConfigDialog.getReconOptsTk()
     if opts is None:
@@ -110,6 +112,28 @@ def reconstruct(input_file, out_format='fits', bipolar=False):
         outfile = basename + '_reImg.fits'
         print 'saving image data to ' + outfile
         hdu = pyfits.PrimaryHDU(reImg)
+        hdu.writeto(outfile, clobber=True)
+    # save 8-bit image for display if needed
+    if not eight_bit:
+        return
+    reImg8bit = ((reImg - np.amin(reImg)) /
+                 (np.amax(reImg) - np.amin(reImg)) * 255.0).\
+        astype(np.uint8)
+    if out_format == 'hdf5':
+        outfile = basename + '_reImg_8bit.h5'
+        print 'saving image data to ' + outfile
+        f = h5py.File(outfile, 'w')
+        f['reImg'] = reImg8bit
+        f.close()
+    elif out_format == 'tiff':
+        outfile = basename + '_reImg_8bit.tiff'
+        print 'saving image data to ' + outfile
+        imageList = [reImg8bit[:, :, i] for i in xrange(reImg.shape[2])]
+        fi.write_multipage(imageList, outfile)
+    else:  # including 'fits'
+        outfile = basename + '_reImg_8bit.fits'
+        print 'saving image data to ' + outfile
+        hdu = pyfits.PrimaryHDU(reImg8bit)
         hdu.writeto(outfile, clobber=True)
 
 
