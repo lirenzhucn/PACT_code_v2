@@ -111,9 +111,11 @@ def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
         recon = Reconstruction2D(opts)
     else:
         recon = Reconstruction2DUnipolar(opts)
+    # read out data
     f = h5py.File(input_file, 'r')
     paData = np.array(f['chndata_all'], order='F')
     f.close()
+    # reconstruction
     reImg = recon.reconstruct(paData)
     out_file = makeOutputFileName(out_file, RECON_OPTS_DICT)
     dirname = os.path.dirname(input_file)
