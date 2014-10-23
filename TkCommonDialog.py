@@ -1,8 +1,25 @@
 #!/usr/bin/env python
 
-from Tkinter import Tk, StringVar  # helper classes
+from Tkinter import Tk, StringVar, IntVar  # helper classes
 from Tkinter import END, LEFT, ACTIVE  # constants
-from Tkinter import Entry, Frame, Button  # controls
+from Tkinter import Entry, Frame, Button, Checkbutton  # widget
+
+
+# a check button widget that has a getVal method
+class ValCheckbutton(Checkbutton):
+
+    def __init__(self, master, **kw):
+        self.intVal = IntVar()
+        Checkbutton.__init__(self, master, var=self.intVal, **kw)
+
+    def setVal(self, val):
+        if bool(val):
+            self.select()
+        else:
+            self.deselect()
+
+    def getVal(self):
+        return bool(self.intVal.get())
 
 
 class NumberEntry(Entry):

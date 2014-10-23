@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 
+from numbers import Number
 from Tkinter import Label
-from TkCommonDialog import CommonDialog, NumberEntry
+from TkCommonDialog import CommonDialog, NumberEntry, ValCheckbutton
 from ring_pact_reconstruction import Options
 from ring_pact_reconstruction import Unpack, UnpackScan
 from ring_pact_reconstruction import Reconstruction2D, Reconstruction2DUnipolar
@@ -20,6 +21,9 @@ RECON_OPTS_DICT = {
     'fs': 40.0,  # MHz, sampling rate
     # other tunables
     'vm': 1.510,  # mm/us, speed of sound
+    # preprocess flags
+    'exact': False,
+    'wiener': False,
 }
 
 UNPACK_OPTS_DICT = {
@@ -50,8 +54,11 @@ class ConfigDialog(CommonDialog):
         self.keys = sorted(self.resultDict.keys())
         for key in self.keys:
             val = self.resultDict[key]
-            Label(master, text=key).grid(row=rowIdx)
-            self.entries.append(NumberEntry(master))
+            if isinstance(val, bool):
+                self.entries.append(ValCheckbutton(master, text=key))
+            else:  # assuming everything is number
+                Label(master, text=key).grid(row=rowIdx)
+                self.entries.append(NumberEntry(master))
             self.entries[rowIdx].grid(row=rowIdx, column=1)
             self.entries[rowIdx].setVal(val)
             rowIdx = rowIdx + 1
@@ -64,6 +71,7 @@ class ConfigDialog(CommonDialog):
             key = self.keys[i]
             entry = self.entries[i]
             resultDict[key] = entry.getVal()
+        print resultDict
         self.result = Options(resultDict)
 
     @staticmethod
