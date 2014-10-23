@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 
-from Tkinter import *
+from Tkinter import Label
 from TkCommonDialog import CommonDialog, NumberEntry
-from ring_pact_reconstruction import *
-import argh
+from ring_pact_reconstruction import Options
+from ring_pact_reconstruction import Unpack, UnpackScan
+from ring_pact_reconstruction import Reconstruction2D, Reconstruction2DUnipolar
+import numpy as np
 
 RECON_OPTS_DICT = {
     # reconstructed image
@@ -83,6 +85,7 @@ import h5py
 import pyfits
 import os.path
 import skimage.io._plugins.freeimage_plugin as fi
+import argh
 
 
 @argh.arg('input-file', type=str, help='input raw data file')
