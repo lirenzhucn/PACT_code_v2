@@ -1,13 +1,17 @@
 #!/usr/bin/env python
 
-from Tkinter import *
+from Tkinter import Tk, StringVar  # helper classes
+from Tkinter import END, LEFT, ACTIVE  # constants
+from Tkinter import Entry, Frame, Button  # controls
+
 
 class NumberEntry(Entry):
+
     def __init__(self, master, **kw):
         self.strVar = StringVar()
-        vcmd = (master.register(self.isValid),\
+        vcmd = (master.register(self.isValid),
                 '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        Entry.__init__(self, master, textvariable=self.strVar,\
+        Entry.__init__(self, master, textvariable=self.strVar,
                        validate='key', validatecommand=vcmd, **kw)
 
     def setVal(self, val):
@@ -25,7 +29,9 @@ class NumberEntry(Entry):
         except ValueError:
             return False
 
+
 class CommonDialog(Tk):
+
     def __init__(self, title=None):
         Tk.__init__(self)
         if title:
@@ -80,4 +86,3 @@ class CommonDialog(Tk):
 
     def apply(self):
         pass
-
