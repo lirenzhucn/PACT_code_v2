@@ -7,22 +7,27 @@ import numpy as np
 import scipy.signal as spsig
 import scipy.ndimage as spnd
 import h5py
-from os.path import expanduser, normpath, join, exists
+from os.path import expanduser, normpath, join
 from os import listdir, rename
 import sys
 
 from unpack_speedup import daq_loop, generateChanMap
 from recon_loop import recon_loop, find_index_map_and_angular_weight
-from preprocess import subfunc_wiener, subfunc_exact
+# from preprocess import subfunc_wiener, subfunc_exact
+
 
 class Options:
 
     def __init__(self, entries):
         self.__dict__.update(entries)
-        
+
 
 class UnpackUtilities:
     '''Provide a series of statistic methods for Unpack classes'''
+
+    @staticmethod
+    def sizeOfAxis(x, ind):
+        x.shape[ind] if x is not None else 0
 
     @staticmethod
     def readBinFile(filePath, dtype, packSize, totFirings, numExpr):
@@ -77,11 +82,11 @@ class UnpackUtilities:
             print '\t->' + destFilePath
             rename(srcFilePath, destFilePath)
         return renameIndex
-        
-        
+
+
 class UnpackScan(UnpackUtilities):
     '''Extractor for averaged/scanned data set'''
-    
+
     def __init__(self, opts):
         assert(isinstance(opts, Options))
         self.opts = opts
@@ -91,16 +96,15 @@ class UnpackScan(UnpackUtilities):
             self.opts.dtype = '<u4'
         # normalize and expand the paths
         self.opts.src_dir = normpath(expanduser(self.opts.src_dir))
-        self.opts.dest_dir =\
-                normpath(expanduser(join(self.opts.src_dir,\
-                                         self.opts.dest_ext)))
+        self.opts.dest_dir = normpath(expanduser(join(self.opts.src_dir,
+                                                      self.opts.dest_ext)))
 
     def readChannelData(self):
         # variable extraction
         startInd = self.opts.EXP_START
         endInd = self.opts.EXP_END
         srcDir = self.opts.src_dir
-        destDir = self.opts.dest_dir
+        # destDir = self.opts.dest_dir
         packSize = self.opts.PackSize
         totFirings = self.opts.TotFirings
         numBoards = self.opts.NumBoards
@@ -111,7 +115,7 @@ class UnpackScan(UnpackUtilities):
         chnDataList = [None] * (endInd - startInd + 1)
         for ind in xrange(startInd, endInd+1):
             print 'Info: unpacking index %d...' % (ind)
-            packData = [] # list of pack data
+            packData = []  # list of pack data
             # search through file list to find "experiment" (z step)
             # number for this particular index
             pattern = re.compile(r'Board([0-9]+)' +
@@ -125,8 +129,8 @@ class UnpackScan(UnpackUtilities):
                     _numExpr = int(matchObj.group(2))
                     if _numExpr != numExpr and numExpr != -1:
                         print 'Warning: multiple' +\
-                                '\"experiment\" numbers found!' +\
-                                ' Last found will be used.'
+                            '\"experiment\" numbers found!' +\
+                            ' Last found will be used.'
                     numExpr = _numExpr
             if numExpr == -1:
                 print 'Warning: no file found. Skipping index %d' % (ind)
@@ -135,12 +139,12 @@ class UnpackScan(UnpackUtilities):
             for boardId in xrange(numBoards):
                 boardName = self.opts.BoardName[boardId]
                 fileName = '%sExperiment%dTotalFiring%d_Pack_%d.bin' %\
-                        (boardName, numExpr, totFirings, ind)
+                    (boardName, numExpr, totFirings, ind)
                 filePath = join(srcDir, fileName)
-                tempData = self.readBinFile(filePath, self.opts.dtype,\
+                tempData = self.readBinFile(filePath, self.opts.dtype,
                                             packSize, totFirings, numExpr)
                 if tempData is not None:
-                    tempData = tempData[0:2*dataBlockSize,:]
+                    tempData = tempData[0:2*dataBlockSize, :]
                 packData.append(tempData)
             if any([x is None for x in packData]):
                 print 'Warning: broken raw files. Skipping index %d' % (ind)
@@ -149,7 +153,7 @@ class UnpackScan(UnpackUtilities):
             # interpret raw data into channel format
             # see daq_loop.c for original implementation
             chanMap = generateChanMap(numElements)
-            chnData, chnDataAll = daq_loop(packData[0], packData[1],\
+            chnData, chnDataAll = daq_loop(packData[0], packData[1],
                                            chanMap, numExpr)
             # fix bad channels
             chnData = -chnData/numExpr
@@ -157,9 +161,9 @@ class UnpackScan(UnpackUtilities):
             chnData[:, badChannels] = - chnData[:, badChannels]
             # save it to the list
             chnDataList[ind - startInd] = chnData
-        sizeOfAxis = lambda x, ind: (x.shape[ind] if x is not None else 0)
-        timeSeqLenList = [sizeOfAxis(x,0) for x in chnDataList]
-        detectorNumList = [sizeOfAxis(x,1) for x in chnDataList]
+        # sizeOfAxis = lambda x, ind: (x.shape[ind] if x is not None else 0)
+        timeSeqLenList = [self.sizeOfAxis(x, 0) for x in chnDataList]
+        detectorNumList = [self.sizeOfAxis(x, 1) for x in chnDataList]
         timeSeqLen = max(timeSeqLenList)
         detectorNum = max(detectorNumList)
         numZStep = len(chnDataList)
@@ -168,7 +172,7 @@ class UnpackScan(UnpackUtilities):
         for idx in xrange(numZStep):
             chnData = chnDataList[idx]
             if chnData is not None:
-                chnData3D[:,:,idx] = chnData
+                chnData3D[:, :, idx] = chnData
         chnData = np.mean(chnData3D, axis=2)
         # store indices in object
         self.startInd = startInd
@@ -203,16 +207,15 @@ class Unpack(UnpackUtilities):
             self.opts.dtype = '<u4'
         # normalize and expand the paths
         self.opts.src_dir = normpath(expanduser(self.opts.src_dir))
-        self.opts.dest_dir =\
-                normpath(expanduser(join(self.opts.src_dir,\
-                                         self.opts.dest_ext)))
+        self.opts.dest_dir = normpath(expanduser(join(self.opts.src_dir,
+                                                      self.opts.dest_ext)))
 
     def readChannelData(self):
         # variable extraction
         startInd = self.opts.EXP_START
         endInd = self.opts.EXP_END
         srcDir = self.opts.src_dir
-        destDir = self.opts.dest_dir
+        # destDir = self.opts.dest_dir
         packSize = self.opts.PackSize
         totFirings = self.opts.TotFirings
         numBoards = self.opts.NumBoards
@@ -228,7 +231,7 @@ class Unpack(UnpackUtilities):
         fileNameList = listdir(srcDir)
         chnDataAllList = [None] * (endInd - startInd + 1)
         for ind in xrange(startInd, endInd+1):
-            packData = [] # list of pack data
+            packData = []  # list of pack data
             # search through file list to find "experiment" (z step)
             # number for this particular index
             pattern = re.compile(r'Board([0-9]+)' +
@@ -242,21 +245,21 @@ class Unpack(UnpackUtilities):
                     _numExpr = int(matchObj.group(2))
                     if _numExpr != numExpr and numExpr != -1:
                         print 'Warning: multiple' +\
-                                '\"experiment\" numbers found!' +\
-                                ' Last found will be used.'
+                            '\"experiment\" numbers found!' +\
+                            ' Last found will be used.'
                     numExpr = _numExpr
             if numExpr == -1:
                 print 'Warning: no file found. Skipping index %d' % (ind)
-                continue # no file to process. skip this index
+                continue  # no file to process. skip this index
             for boardId in xrange(numBoards):
                 boardName = self.opts.BoardName[boardId]
                 fileName = '%sExperiment%dTotalFiring%d_Pack_%d.bin' %\
-                        (boardName, numExpr, totFirings, ind)
+                    (boardName, numExpr, totFirings, ind)
                 filePath = join(srcDir, fileName)
-                tempData = self.readBinFile(filePath, self.opts.dtype,\
+                tempData = self.readBinFile(filePath, self.opts.dtype,
                                             packSize, totFirings, numExpr)
                 if tempData is not None:
-                    tempData = tempData[0:2*dataBlockSize,:]
+                    tempData = tempData[0:2*dataBlockSize, :]
                 packData.append(tempData)
             if any([x is None for x in packData]):
                 print 'Warning: broken raw files. Skipping index %d' % (ind)
@@ -265,27 +268,21 @@ class Unpack(UnpackUtilities):
             # see daq_loop.c for original implementation
             chanMap = generateChanMap(numElements)
             print 'Starting daq_loop...'
-            chnData, chnDataAll = daq_loop(packData[0], packData[1],\
+            chnData, chnDataAll = daq_loop(packData[0], packData[1],
                                            chanMap, numExpr)
             # fix bad channels
             chnData = -chnData/numExpr
             badChannels = [idx-1 for idx in self.opts.BadChannels]
             chnData[:, badChannels] = - chnData[:, badChannels]
-            chnDataAll = np.reshape(chnDataAll,\
-                                    (dataBlockSize, numElements, numExpr),\
+            chnDataAll = np.reshape(chnDataAll,
+                                    (dataBlockSize, numElements, numExpr),
                                     order='F')
             chnDataAll[:, badChannels, :] = -chnDataAll[:, badChannels, :]
 
-            # if save raw block
-            # always save raw in unpack
-            #if not exists(destDir):
-                #mkdir(destDir)
-            #self.saveChnData(chnData, chnDataAll, destDir, ind)
             chnDataAllList[ind - startInd] = chnDataAll
-        sizeOfAxis = lambda x, ind: (x.shape[ind] if x is not None else 0)
-        zSteps = [sizeOfAxis(x,2) for x in chnDataAllList]
-        timeSeqLenList = [sizeOfAxis(x,0) for x in chnDataAllList]
-        detectorNumList = [sizeOfAxis(x,1) for x in chnDataAllList]
+        zSteps = [self.sizeOfAxis(x, 2) for x in chnDataAllList]
+        timeSeqLenList = [self.sizeOfAxis(x, 0) for x in chnDataAllList]
+        detectorNumList = [self.sizeOfAxis(x, 1) for x in chnDataAllList]
         numZStep = sum(zSteps)
         timeSeqLen = max(timeSeqLenList)
         detectorNum = max(detectorNumList)
@@ -295,7 +292,7 @@ class Unpack(UnpackUtilities):
         for chnDataAll in chnDataAllList:
             if chnDataAll is not None:
                 zSize = chnDataAll.shape[2]
-                chnData3D[:,:,zInd:zInd+zSize] = chnDataAll
+                chnData3D[:, :, zInd:zInd+zSize] = chnDataAll
                 zInd += zSize
         chnData = np.mean(chnData3D, axis=2)
         # store indices in object
@@ -307,7 +304,7 @@ class Unpack(UnpackUtilities):
 
     def unpack(self):
         self.readChannelData()
-        self.saveChnData(self.chnData, self.chnData3D,\
+        self.saveChnData(self.chnData, self.chnData3D,
                          self.opts.dest_dir, self.startInd)
 
 
@@ -319,7 +316,7 @@ class ReconUtility:
         find the delay value from the first few samples on A-lines
         """
         nSteps = paData.shape[1]
-        refImpulse = paData[0:100,:]
+        refImpulse = paData[0:100, :]
         refImpulseEnv = np.abs(spsig.hilbert(refImpulse, axis=0))
         impuMax = np.amax(refImpulseEnv, axis=0)
         # to be consistent with the MATLAB's implementation ddof=1
@@ -329,19 +326,19 @@ class ReconUtility:
             if (impuMax[n] > 3.0*tempStd[n] and impuMax[n] > 0.1):
                 tmpThresh = 2*tempStd[n]
                 m1 = 14
-                for ii in xrange(14,50):
-                    if (refImpulse[ii-1,n] > -tmpThresh and\
-                        refImpulse[ii,n] < -tmpThresh):
+                for ii in xrange(14, 50):
+                    if refImpulse[ii-1, n] > -tmpThresh and\
+                            refImpulse[ii, n] < -tmpThresh:
                         m1 = ii
                         break
                 m2 = m1
                 m3 = m1
-                for ii in xrange(9,m1+1):
-                    if (refImpulse[ii-1,n] < tmpThresh and\
-                        refImpulse[ii,n] > tmpThresh):
+                for ii in xrange(9, m1+1):
+                    if refImpulse[ii-1, n] < tmpThresh and\
+                            refImpulse[ii, n] > tmpThresh:
                         m2 = ii
-                    if (refImpulse[ii-1,n] > tmpThresh and\
-                        refImpulse[ii,n] < tmpThresh):
+                    if refImpulse[ii-1, n] > tmpThresh and\
+                            refImpulse[ii, n] < tmpThresh:
                         m3 = ii
                 delayIdx[n] = -float(m2+m3+2)/2.0/fs
         return delayIdx
@@ -353,8 +350,8 @@ class ReconUtility:
         CHAR_INDICATOR = '#'
         progress = int(float(current)/total * 100)
         numIndicator = int(float(current)/total * TOTAL_INDICATOR_NUM)
-        sys.stdout.write('\r{:>3}% [{:<50}]'.format\
-                         (progress, CHAR_INDICATOR*numIndicator))
+        msg = '\r{:>3}% [{:<50}]'.format(progress, CHAR_INDICATOR*numIndicator)
+        sys.stdout.write(msg)
         sys.stdout.flush()
         if current == total:
             print '\tDone'
@@ -393,16 +390,16 @@ class Reconstruction2D:
         yImg = np.copy(yImg, order='F')
         # receiver position
         detectorAngle = np.arange(0, nSteps, 1, dtype=np.double) *\
-                anglePerStep + iniAngle/180.0*np.pi
+            anglePerStep + iniAngle/180.0*np.pi
         xReceive = np.cos(detectorAngle)*R
         yReceive = np.sin(detectorAngle)*R
         # use the fisrt z step data to calibrate DAQ delay
-        delayIdx = ReconUtility.findDelayIdx(paData[:,:,0], fs)
+        delayIdx = ReconUtility.findDelayIdx(paData[:, :, 0], fs)
         # find index map and angular weighting for backprojection
         print 'Calculating geometry dependent back-projection paramters'
         (self.idxAll, self.angularWeight, self.totalAngularWeight) =\
-                find_index_map_and_angular_weight\
-                (nSteps, xImg, yImg, xReceive, yReceive, delayIdx, vm, fs)
+            find_index_map_and_angular_weight(nSteps, xImg, yImg, xReceive,
+                                              yReceive, delayIdx, vm, fs)
         # reconstructed image buffer
         self.reImg = np.zeros((nPixely, nPixelx, zSteps), order='F')
         # store parameters
@@ -423,20 +420,20 @@ class Reconstruction2D:
         print 'Back-projection starts...'
         for z in xrange(zSteps):
             # remove DC
-            paDataDC = np.dot(np.ones((nSamples - 99, 1)),\
-                              np.mean(paData[99:nSamples,:,z],\
+            paDataDC = np.dot(np.ones((nSamples - 99, 1)),
+                              np.mean(paData[99:nSamples, :, z],
                                       axis=0).reshape((1, paData.shape[1])))
-            paData[99:nSamples,:,z] = paData[99:nSamples,:,z] - paDataDC
-            temp = np.copy(paData[:,:,z], order='F')
-            paImg = recon_loop(temp, self.idxAll, self.angularWeight,\
+            paData[99:nSamples, :, z] = paData[99:nSamples, :, z] - paDataDC
+            temp = np.copy(paData[:, :, z], order='F')
+            paImg = recon_loop(temp, self.idxAll, self.angularWeight,
                                nPixelx, nPixely, nSteps)
             if paImg is None:
                 print 'WARNING: None returned as 2D reconstructed image!'
             paImg = paImg/self.totalAngularWeight
-            self.reImg[:,:,z] = paImg
+            self.reImg[:, :, z] = paImg
             ReconUtility.updateProgress(z+1, zSteps)
         # return the reconstructed image
-        #return self.reImg
+        # return self.reImg
 
     def reconstruct(self, paData):
         self.initRecon(paData)
@@ -454,16 +451,16 @@ class Reconstruction2DUnipolar(Reconstruction2D):
     def singleSector(self, paSlice, startInd):
         endInd = startInd + self.sectorSize
         indRange = range(startInd, endInd) + \
-                range(startInd+self.nSteps/2, endInd+self.nSteps/2)
-        indRange = [ind if ind<512 else ind-512 for ind in indRange]
-        idxAll = np.copy(self.idxAll[:,:,indRange], order='F')
-        angularWeight = np.copy(self.angularWeight[:,:,indRange],\
+            range(startInd+self.nSteps/2, endInd+self.nSteps/2)
+        indRange = [ind if ind < 512 else ind-512 for ind in indRange]
+        idxAll = np.copy(self.idxAll[:, :, indRange], order='F')
+        angularWeight = np.copy(self.angularWeight[:, :, indRange],
                                 order='F')
-        temp = np.copy(paSlice[:,indRange], order='F')
-        paImg = recon_loop(temp, idxAll, angularWeight,\
+        temp = np.copy(paSlice[:, indRange], order='F')
+        paImg = recon_loop(temp, idxAll, angularWeight,
                            self.nPixelx, self.nPixely, 2*self.sectorSize)
         angle = self.opts.iniAngle - 90.0 +\
-                (startInd + self.sectorSize/2.0) * 360.0 / self.nSteps
+            (startInd + self.sectorSize/2.0) * 360.0 / self.nSteps
         paImg = spnd.interpolation.rotate(paImg, -angle, reshape=False)
         paImg = np.abs(spsig.hilbert(paImg, axis=0))
         paImg = spnd.interpolation.rotate(paImg, angle, reshape=False)
@@ -474,17 +471,16 @@ class Reconstruction2DUnipolar(Reconstruction2D):
         print 'Reconstruction starts...'
         for z in xrange(self.zSteps):
             # remove DC
-            paDataDC = np.dot(np.ones((nSamples - 99, 1)),\
-                              np.mean(paData[99:nSamples,:,z],\
+            paDataDC = np.dot(np.ones((nSamples - 99, 1)),
+                              np.mean(paData[99:nSamples, :, z],
                                       axis=0).reshape((1, paData.shape[1])))
-            paData[99:nSamples,:,z] = paData[99:nSamples,:,z] - paDataDC
-            paSlice = np.copy(paData[:,:,z], order='F')
+            paData[99:nSamples, :, z] = paData[99:nSamples, :, z] - paDataDC
+            paSlice = np.copy(paData[:, :, z], order='F')
             reImgSlice = np.zeros((self.nPixely, self.nPixelx), order='F')
-            #reImgSlice = self.singleSector(paSlice, 0)
             for startInd in xrange(0, self.nSteps/2, self.sectorStep):
                 paImg = self.singleSector(paSlice, startInd)
                 reImgSlice = reImgSlice + paImg
-            self.reImg[:,:,z] = reImgSlice
+            self.reImg[:, :, z] = reImgSlice
             ReconUtility.updateProgress(z+1, self.zSteps)
 
     def reconstruct(self, paData):
@@ -495,4 +491,3 @@ class Reconstruction2DUnipolar(Reconstruction2D):
 
 class Reconstruction3D:
     pass
-
