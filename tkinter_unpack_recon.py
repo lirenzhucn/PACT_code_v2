@@ -71,6 +71,14 @@ class ConfigDialog(CommonDialog):
         return cfgDlg.result
 
 
+def makeOutputFileName(pattern, params):
+    filename = pattern
+    for key in params.keys():
+        k = r'{' + key + r'}'
+        filename = filename.replace(k, str(params[key]))
+    return filename
+
+
 import h5py
 import pyfits
 import os.path
@@ -78,11 +86,11 @@ import skimage.io._plugins.freeimage_plugin as fi
 
 
 @argh.arg('input-file', type=str, help='input raw data file')
-@argh.arg('-of', '--out-format', type=str, help='output format')
+@argh.arg('out-file', type=str, help='output file name pattern')
 @argh.arg('-8', '--eight-bit',
           help='save 8-bit version for display too.')
 @argh.arg('-bp', '--bipolar', help='whether use bipolar recon.')
-def reconstruct(input_file, out_format='tiff', eight_bit=False, bipolar=False):
+def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
     print 'start reconstruction...'
     opts = ConfigDialog.getReconOptsTk()
     if opts is None:
@@ -96,45 +104,45 @@ def reconstruct(input_file, out_format='tiff', eight_bit=False, bipolar=False):
     paData = np.array(f['chndata_all'], order='F')
     f.close()
     reImg = recon.reconstruct(paData)
-    (basename, ext) = os.path.splitext(input_file)
+    out_file = makeOutputFileName(out_file, RECON_OPTS_DICT)
+    dirname = os.path.dirname(input_file)
+    out_file = os.path.join(dirname, out_file)
+    (basename, ext) = os.path.splitext(out_file)
+    out_format = ext[1:]
     if out_format == 'hdf5':
-        outfile = basename + '_reImg.h5'
-        print 'saving image data to ' + outfile
-        f = h5py.File(outfile, 'w')
+        print 'saving image data to ' + out_file
+        f = h5py.File(out_file, 'w')
         f['reImg'] = reImg
         f.close()
     elif out_format == 'tiff':
-        outfile = basename + '_reImg.tiff'
-        print 'saving image data to ' + outfile
+        print 'saving image data to ' + out_file
         imageList = [reImg[:, :, i] for i in xrange(reImg.shape[2])]
-        fi.write_multipage(imageList, outfile)
+        fi.write_multipage(imageList, out_file)
     else:  # including 'fits'
-        outfile = basename + '_reImg.fits'
-        print 'saving image data to ' + outfile
+        print 'saving image data to ' + out_file
         hdu = pyfits.PrimaryHDU(reImg)
-        hdu.writeto(outfile, clobber=True)
+        hdu.writeto(out_file, clobber=True)
     # save 8-bit image for display if needed
     if not eight_bit:
         return
     reImg8bit = ((reImg - np.amin(reImg)) /
                  (np.amax(reImg) - np.amin(reImg)) * 255.0).\
         astype(np.uint8)
+    (basename, ext) = os.path.splitext(out_file)
+    out_file = basename + '_8bit' + ext
     if out_format == 'hdf5':
-        outfile = basename + '_reImg_8bit.h5'
-        print 'saving image data to ' + outfile
-        f = h5py.File(outfile, 'w')
+        print 'saving image data to ' + out_file
+        f = h5py.File(out_file, 'w')
         f['reImg'] = reImg8bit
         f.close()
     elif out_format == 'tiff':
-        outfile = basename + '_reImg_8bit.tiff'
-        print 'saving image data to ' + outfile
+        print 'saving image data to ' + out_file
         imageList = [reImg8bit[:, :, i] for i in xrange(reImg.shape[2])]
-        fi.write_multipage(imageList, outfile)
+        fi.write_multipage(imageList, out_file)
     else:  # including 'fits'
-        outfile = basename + '_reImg_8bit.fits'
-        print 'saving image data to ' + outfile
+        print 'saving image data to ' + out_file
         hdu = pyfits.PrimaryHDU(reImg8bit)
-        hdu.writeto(outfile, clobber=True)
+        hdu.writeto(out_file, clobber=True)
 
 
 @argh.arg('-i', '--ind', type=int, help='index to process')
