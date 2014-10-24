@@ -13,7 +13,7 @@ import sys
 
 from unpack_speedup import daq_loop, generateChanMap
 from recon_loop import recon_loop, find_index_map_and_angular_weight
-# from preprocess import subfunc_wiener, subfunc_exact
+from preprocess import subfunc_wiener, subfunc_exact
 
 
 class Options:
@@ -22,7 +22,7 @@ class Options:
         self.__dict__.update(entries)
 
 
-class UnpackUtilities:
+class UnpackUtility:
     '''Provide a series of statistic methods for Unpack classes'''
 
     @staticmethod
@@ -84,7 +84,7 @@ class UnpackUtilities:
         return renameIndex
 
 
-class UnpackScan(UnpackUtilities):
+class UnpackScan:
     '''Extractor for averaged/scanned data set'''
 
     def __init__(self, opts):
@@ -141,8 +141,9 @@ class UnpackScan(UnpackUtilities):
                 fileName = '%sExperiment%dTotalFiring%d_Pack_%d.bin' %\
                     (boardName, numExpr, totFirings, ind)
                 filePath = join(srcDir, fileName)
-                tempData = self.readBinFile(filePath, self.opts.dtype,
-                                            packSize, totFirings, numExpr)
+                tempData =\
+                    UnpackUtility.readBinFile(filePath, self.opts.dtype,
+                                              packSize, totFirings, numExpr)
                 if tempData is not None:
                     tempData = tempData[0:2*dataBlockSize, :]
                 packData.append(tempData)
@@ -161,9 +162,8 @@ class UnpackScan(UnpackUtilities):
             chnData[:, badChannels] = - chnData[:, badChannels]
             # save it to the list
             chnDataList[ind - startInd] = chnData
-        # sizeOfAxis = lambda x, ind: (x.shape[ind] if x is not None else 0)
-        timeSeqLenList = [self.sizeOfAxis(x, 0) for x in chnDataList]
-        detectorNumList = [self.sizeOfAxis(x, 1) for x in chnDataList]
+        timeSeqLenList = [UnpackUtility.sizeOfAxis(x, 0) for x in chnDataList]
+        detectorNumList = [UnpackUtility.sizeOfAxis(x, 1) for x in chnDataList]
         timeSeqLen = max(timeSeqLenList)
         detectorNum = max(detectorNumList)
         numZStep = len(chnDataList)
@@ -192,7 +192,7 @@ class UnpackScan(UnpackUtilities):
         f.close()
 
 
-class Unpack(UnpackUtilities):
+class Unpack:
 
     def __init__(self, opts):
         assert(isinstance(opts, Options))
@@ -223,7 +223,7 @@ class Unpack(UnpackUtilities):
         numElements = self.opts.NumElements
         # find next index
         if startInd == -1 or endInd == -1:
-            nextInd = self.renameUnindexedFile(srcDir)
+            nextInd = UnpackUtility.renameUnindexedFile(srcDir)
             if nextInd == -1:
                 return
             startInd = nextInd
@@ -256,8 +256,9 @@ class Unpack(UnpackUtilities):
                 fileName = '%sExperiment%dTotalFiring%d_Pack_%d.bin' %\
                     (boardName, numExpr, totFirings, ind)
                 filePath = join(srcDir, fileName)
-                tempData = self.readBinFile(filePath, self.opts.dtype,
-                                            packSize, totFirings, numExpr)
+                tempData =\
+                    UnpackUtility.readBinFile(filePath, self.opts.dtype,
+                                              packSize, totFirings, numExpr)
                 if tempData is not None:
                     tempData = tempData[0:2*dataBlockSize, :]
                 packData.append(tempData)
@@ -280,9 +281,11 @@ class Unpack(UnpackUtilities):
             chnDataAll[:, badChannels, :] = -chnDataAll[:, badChannels, :]
 
             chnDataAllList[ind - startInd] = chnDataAll
-        zSteps = [self.sizeOfAxis(x, 2) for x in chnDataAllList]
-        timeSeqLenList = [self.sizeOfAxis(x, 0) for x in chnDataAllList]
-        detectorNumList = [self.sizeOfAxis(x, 1) for x in chnDataAllList]
+        zSteps = [UnpackUtility.sizeOfAxis(x, 2) for x in chnDataAllList]
+        timeSeqLenList = [UnpackUtility.sizeOfAxis(x, 0)
+                          for x in chnDataAllList]
+        detectorNumList = [UnpackUtility.sizeOfAxis(x, 1)
+                           for x in chnDataAllList]
         numZStep = sum(zSteps)
         timeSeqLen = max(timeSeqLenList)
         detectorNum = max(detectorNumList)
@@ -304,8 +307,8 @@ class Unpack(UnpackUtilities):
 
     def unpack(self):
         self.readChannelData()
-        self.saveChnData(self.chnData, self.chnData3D,
-                         self.opts.dest_dir, self.startInd)
+        UnpackUtility.saveChnData(self.chnData, self.chnData3D,
+                                  self.opts.dest_dir, self.startInd)
 
 
 class ReconUtility:
@@ -437,6 +440,12 @@ class Reconstruction2D:
 
     def reconstruct(self, paData):
         self.initRecon(paData)
+        if self.opts.wiener:
+            print 'Wiener filtering raw data...'
+            paData = subfunc_wiener(paData)
+        if self.opts.exact:
+            print 'Filtering raw data for exact reconstruction...'
+            paData = subfunc_exact(paData)
         self.backprojection(paData)
         return self.reImg
 
@@ -485,6 +494,12 @@ class Reconstruction2DUnipolar(Reconstruction2D):
 
     def reconstruct(self, paData):
         self.initRecon(paData)
+        if self.opts.wiener:
+            print 'Wiener filtering raw data...'
+            paData = subfunc_wiener(paData)
+        if self.opts.exact:
+            print 'Filtering raw data for exact reconstruction...'
+            paData = subfunc_exact(paData)
         self.doRecon(paData)
         return self.reImg
 
