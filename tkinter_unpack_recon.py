@@ -71,7 +71,6 @@ class ConfigDialog(CommonDialog):
             key = self.keys[i]
             entry = self.entries[i]
             resultDict[key] = entry.getVal()
-        print resultDict
         self.result = Options(resultDict)
 
     @staticmethod
@@ -117,7 +116,7 @@ def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
     f.close()
     # reconstruction
     reImg = recon.reconstruct(paData)
-    out_file = makeOutputFileName(out_file, RECON_OPTS_DICT)
+    out_file = makeOutputFileName(out_file, opts.__dict__)
     dirname = os.path.dirname(input_file)
     out_file = os.path.join(dirname, out_file)
     (basename, ext) = os.path.splitext(out_file)
