@@ -27,7 +27,7 @@ class UnpackUtility:
 
     @staticmethod
     def sizeOfAxis(x, ind):
-        x.shape[ind] if x is not None else 0
+        return x.shape[ind] if x is not None else 0
 
     @staticmethod
     def readBinFile(filePath, dtype, packSize, totFirings, numExpr):
