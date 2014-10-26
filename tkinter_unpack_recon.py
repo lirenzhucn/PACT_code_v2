@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from numbers import Number
 from Tkinter import Label
 from TkCommonDialog import CommonDialog, NumberEntry, ValCheckbutton
 from ring_pact_reconstruction import Options
@@ -84,7 +83,13 @@ def makeOutputFileName(pattern, params):
     filename = pattern
     for key in params.keys():
         k = r'{' + key + r'}'
-        filename = filename.replace(k, str(params[key]))
+        if key == 'vm':
+            valString = '%.3f' % (params[key],)
+        elif key == 'spacing':
+            valString = '%.3f' % (params[key],)
+        else:
+            valString = '%.1f' % (params[key],)
+        filename = filename.replace(k, valString)
     return filename
 
 
