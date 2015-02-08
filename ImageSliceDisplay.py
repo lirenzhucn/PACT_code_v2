@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 from PyQt4.QtGui import *
 from PyQt4.QtCore import Qt, pyqtSlot, SIGNAL
@@ -52,7 +52,7 @@ class MinMaxDialog(QDialog):
         qp = QPainter()
         qp.begin(self.mPixmapHist)
         qp.setPen(QColor(100, 100, 100))
-        for ind in xrange(len(hist)):
+        for ind in range(len(hist)):
             qp.drawLine(ind, height, ind, (1-hist[ind])*height)
         qp.end()
         # self.mLbHist.setPixmap(self.mPixmapHist)
@@ -295,7 +295,6 @@ def imshow(img, cmapName='gray'):
     return app.exec_()
 
 
-import skimage.io._plugins.freeimage_plugin as fi
 import pyfits
 import argh
 import os.path
@@ -306,17 +305,18 @@ import os.path
 def main(input_file, cm_name):
     junk, ext = os.path.splitext(input_file)
     if ext == '.tiff':
+        import skimage.io._plugins.freeimage_plugin as fi
         imgList = fi.read_multipage(input_file)
         imgData = np.zeros((imgList[0].shape[0], imgList[0].shape[1],
                            len(imgList)), dtype=np.double)
-        for ind in xrange(len(imgList)):
+        for ind in range(len(imgList)):
             imgData[:, :, ind] = imgList[ind]
     elif ext == '.fits':
         imgData = pyfits.getdata(input_file, 0, header=False)
     elif ext == '.npy':
         imgData = np.load(input_file)
     else:
-        print 'file format %s not supported' % (ext)
+        print('file format %s not supported' % (ext))
         return
     imshow(imgData, cm_name)
 
