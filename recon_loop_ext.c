@@ -224,17 +224,92 @@ static PyObject* find_index_map_and_angular_weight(PyObject* self, PyObject* arg
 }
 
 
+// module initialization codes
+// modified to work with both Python 2 and 3
+
+struct module_state {
+  PyObject *error;
+};
+
+#if PY_MAJOR_VERSION >= 3
+#define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
+#else
+#define GETSTATE(m) (&_state)
+static struct module_state _state;
+#endif
+
+static PyObject * error_out(PyObject *m) {
+  struct module_state *st = GETSTATE(m);
+  PyErr_SetString(st->error, "something bad happened");
+  return NULL;
+}
+
 static PyMethodDef ReconMethods[] = {
   {"recon_loop", recon_loop, METH_VARARGS, "Reconstruction loop"},
   {"find_index_map_and_angular_weight", find_index_map_and_angular_weight,
    METH_VARARGS, "Find index map and angular weights for back-projection"},
+  {"error_out", (PyCFunction)error_out, METH_NOARGS, NULL},
   {NULL, NULL, 0, NULL} // the end
 };
 
+#if PY_MAJOR_VERSION >= 3
+
+static int recon_loop_traverse(PyObject *m, visitproc visit, void *arg) {
+  Py_VISIT(GETSTATE(m)->error);
+  return 0;
+}
+
+static int recon_loop_clear(PyObject *m) {
+  Py_CLEAR(GETSTATE(m)->error);
+  return 0;
+}
+
+static struct PyModuleDef moduledef = {
+  PyModuleDef_HEAD_INIT,
+  "recon_loop",
+  NULL,
+  sizeof(struct module_state),
+  ReconMethods,
+  NULL,
+  recon_loop_traverse,
+  recon_loop_clear,
+  NULL
+};
+
+#endif
+
+#if PY_MAJOR_VERSION >= 3
+#define INITERROR return NULL
+#else
+#define INITERROR return
+#endif
+
+
 // module initialization
-PyMODINIT_FUNC
-initrecon_loop(void) {
-  (void) Py_InitModule("recon_loop", ReconMethods);
+PyObject *initializeModule(void) {
+#if PY_MAJOR_VERSION >= 3
+  PyObject *module = PyModule_Create(&moduledef);
+#else
+  PyObject *module = Py_InitModule("recon_loop", ReconMethods);
+#endif
+
+  if (module == NULL) {
+    INITERROR;
+  }
+  struct module_state *st = GETSTATE(module);
   // IMPORTANT: this must be called
   import_array();
+  // always return the object.
+  // Python 2 interface will ignore the returned object.
+  return module;
 }
+
+#if PY_MAJOR_VERSION >= 3
+PyObject *PyInit_recon_loop(void) {
+  return initializeModule();
+}
+#else
+void initrecon_loop(void) {
+  initializeModule();
+}
+#endif

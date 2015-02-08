@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 """Combined setup script for all the extensions"""
 
 from distutils.core import setup, Extension

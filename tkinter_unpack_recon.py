@@ -1,6 +1,6 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from Tkinter import Label
+from tkinter import Label
 from TkCommonDialog import CommonDialog, NumberEntry, ValCheckbutton
 from ring_pact_reconstruction import Options
 from ring_pact_reconstruction import Unpack, UnpackScan
@@ -66,7 +66,7 @@ class ConfigDialog(CommonDialog):
 
     def apply(self):
         resultDict = {}
-        for i in xrange(len(self.keys)):
+        for i in range(len(self.keys)):
             key = self.keys[i]
             entry = self.entries[i]
             resultDict[key] = entry.getVal()
@@ -106,10 +106,10 @@ import argh
           help='save 8-bit version for display too.')
 @argh.arg('-bp', '--bipolar', help='whether use bipolar recon.')
 def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
-    print 'start reconstruction...'
+    print('start reconstruction...')
     opts = ConfigDialog.getReconOptsTk()
     if opts is None:
-        print 'User cancelled reconstruction...'
+        print('User cancelled reconstruction...')
         return
     if bipolar:
         recon = Reconstruction2D(opts)
@@ -127,16 +127,16 @@ def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
     (basename, ext) = os.path.splitext(out_file)
     out_format = ext[1:]
     if out_format == 'hdf5':
-        print 'saving image data to ' + out_file
+        print('saving image data to ' + out_file)
         f = h5py.File(out_file, 'w')
         f['reImg'] = reImg
         f.close()
     elif out_format == 'tiff':
-        print 'saving image data to ' + out_file
-        imageList = [reImg[:, :, i] for i in xrange(reImg.shape[2])]
+        print('saving image data to ' + out_file)
+        imageList = [reImg[:, :, i] for i in range(reImg.shape[2])]
         fi.write_multipage(imageList, out_file)
     else:  # including 'fits'
-        print 'saving image data to ' + out_file
+        print('saving image data to ' + out_file)
         hdu = pyfits.PrimaryHDU(reImg)
         hdu.writeto(out_file, clobber=True)
     # save 8-bit image for display if needed
@@ -148,23 +148,23 @@ def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
     (basename, ext) = os.path.splitext(out_file)
     out_file = basename + '_8bit' + ext
     if out_format == 'hdf5':
-        print 'saving image data to ' + out_file
+        print('saving image data to ' + out_file)
         f = h5py.File(out_file, 'w')
         f['reImg'] = reImg8bit
         f.close()
     elif out_format == 'tiff':
-        print 'saving image data to ' + out_file
-        imageList = [reImg8bit[:, :, i] for i in xrange(reImg.shape[2])]
+        print('saving image data to ' + out_file)
+        imageList = [reImg8bit[:, :, i] for i in range(reImg.shape[2])]
         fi.write_multipage(imageList, out_file)
     else:  # including 'fits'
-        print 'saving image data to ' + out_file
+        print('saving image data to ' + out_file)
         hdu = pyfits.PrimaryHDU(reImg8bit)
         hdu.writeto(out_file, clobber=True)
 
 
 @argh.arg('-i', '--ind', type=int, help='index to process')
 def unpack(src_dir, ind=-1):
-    print 'start unpacking...'
+    print('start unpacking...')
     opts = Options(UNPACK_OPTS_DICT)
     opts.src_dir = src_dir
     opts.EXP_START = ind
@@ -179,7 +179,7 @@ def unpack(src_dir, ind=-1):
 @argh.arg('min_ind', type=int, help='starting index')
 @argh.arg('max_ind', type=int, help='ending index')
 def unpack_scan(src_dir, min_ind, max_ind):
-    print 'start unpacking...'
+    print('start unpacking...')
     opts = Options(UNPACK_OPTS_DICT)
     opts.src_dir = src_dir
     opts.EXP_START = min_ind

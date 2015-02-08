@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
-from Tkinter import Tk, StringVar, IntVar  # helper classes
-from Tkinter import END, LEFT, ACTIVE  # constants
-from Tkinter import Entry, Frame, Button, Checkbutton  # widget
+from tkinter import Tk, StringVar, IntVar  # helper classes
+from tkinter import END, LEFT, ACTIVE  # constants
+from tkinter import Entry, Frame, Button, Checkbutton  # widget
 
 
 # a check button widget that has a getVal method

@@ -1,7 +1,9 @@
 '''
 This is a library that provide reconstruction functionalities
+This library has been modified to work with Python 3
 '''
 
+from math import floor
 import re
 import numpy as np
 import scipy.signal as spsig
@@ -44,7 +46,7 @@ class UnpackUtility:
     def saveChnData(chnData, chnDataAll, destDir, ind):
         fileName = 'chndata_%d.h5' % (ind)
         outputPath = join(destDir, fileName)
-        print 'Saving data to ' + outputPath
+        print('Saving data to ' + outputPath)
         f = h5py.File(outputPath, 'w')
         f['chndata'] = chnData
         f['chndata_all'] = chnDataAll
@@ -52,7 +54,7 @@ class UnpackUtility:
 
     @staticmethod
     def renameUnindexedFile(srcDir):
-        print 'Renaming unindexed raw data files in %s' % (srcDir)
+        print('Renaming unindexed raw data files in %s' % (srcDir))
         pTarget = re.compile(r'Board([0-9]+)Experiment([0-9]+)' +
                              r'TotalFiring([0-9]+)_Pack.bin')
         pExisting = re.compile(r'Board([0-9]+)Experiment([0-9]+)' +
@@ -68,7 +70,7 @@ class UnpackUtility:
                 if matchExisting is not None:
                     indexList.append(int(matchExisting.group(4)))
         if not targetFileList:
-            print 'No unindexed file found!'
+            print('No unindexed file found!')
             return -1
         # target index is max index +1
         if not indexList:
@@ -78,8 +80,8 @@ class UnpackUtility:
         for fileName in targetFileList:
             srcFilePath = join(srcDir, fileName)
             destFilePath = '%s_%d.bin' % (srcFilePath[:-4], renameIndex)
-            print srcFilePath
-            print '\t->' + destFilePath
+            print(srcFilePath)
+            print('\t->' + destFilePath)
             rename(srcFilePath, destFilePath)
         return renameIndex
 
@@ -113,8 +115,8 @@ class UnpackScan:
         # list files
         fileNameList = listdir(srcDir)
         chnDataList = [None] * (endInd - startInd + 1)
-        for ind in xrange(startInd, endInd+1):
-            print 'Info: unpacking index %d...' % (ind)
+        for ind in range(startInd, endInd+1):
+            print('Info: unpacking index %d...' % (ind))
             packData = []  # list of pack data
             # search through file list to find "experiment" (z step)
             # number for this particular index
@@ -128,15 +130,15 @@ class UnpackScan:
                 if matchObj is not None:
                     _numExpr = int(matchObj.group(2))
                     if _numExpr != numExpr and numExpr != -1:
-                        print 'Warning: multiple' +\
-                            '\"experiment\" numbers found!' +\
-                            ' Last found will be used.'
+                        print('Warning: multiple' +
+                              '\"experiment\" numbers found!' +
+                              ' Last found will be used.')
                     numExpr = _numExpr
             if numExpr == -1:
-                print 'Warning: no file found. Skipping index %d' % (ind)
+                print('Warning: no file found. Skipping index %d' % (ind))
                 chnDataList[ind-startInd] = None
                 continue
-            for boardId in xrange(numBoards):
+            for boardId in range(numBoards):
                 boardName = self.opts.BoardName[boardId]
                 fileName = '%sExperiment%dTotalFiring%d_Pack_%d.bin' %\
                     (boardName, numExpr, totFirings, ind)
@@ -148,7 +150,7 @@ class UnpackScan:
                     tempData = tempData[0:2*dataBlockSize, :]
                 packData.append(tempData)
             if any([x is None for x in packData]):
-                print 'Warning: broken raw files. Skipping index %d' % (ind)
+                print('Warning: broken raw files. Skipping index %d' % (ind))
                 chnDataList[ind-startInd] = None
                 continue
             # interpret raw data into channel format
@@ -169,7 +171,7 @@ class UnpackScan:
         numZStep = len(chnDataList)
         chnData3D = np.zeros((timeSeqLen, detectorNum, numZStep),
                              order='F', dtype=np.double)
-        for idx in xrange(numZStep):
+        for idx in range(numZStep):
             chnData = chnDataList[idx]
             if chnData is not None:
                 chnData3D[:, :, idx] = chnData
@@ -185,7 +187,7 @@ class UnpackScan:
         self.readChannelData()
         filename = 'scan_%d_%d.h5' % (self.startInd, self.endInd)
         outputPath = join(self.opts.dest_dir, filename)
-        print 'Saving file to %s ...' % (outputPath)
+        print('Saving file to %s ...' % (outputPath))
         f = h5py.File(outputPath, 'w')
         f['chndata'] = self.chnData
         f['chndata_all'] = self.chnData3D
@@ -230,7 +232,7 @@ class Unpack:
             endInd = nextInd
         fileNameList = listdir(srcDir)
         chnDataAllList = [None] * (endInd - startInd + 1)
-        for ind in xrange(startInd, endInd+1):
+        for ind in range(startInd, endInd+1):
             packData = []  # list of pack data
             # search through file list to find "experiment" (z step)
             # number for this particular index
@@ -244,14 +246,14 @@ class Unpack:
                 if matchObj is not None:
                     _numExpr = int(matchObj.group(2))
                     if _numExpr != numExpr and numExpr != -1:
-                        print 'Warning: multiple' +\
-                            '\"experiment\" numbers found!' +\
-                            ' Last found will be used.'
+                        print('Warning: multiple' +
+                              '\"experiment\" numbers found!' +
+                              ' Last found will be used.')
                     numExpr = _numExpr
             if numExpr == -1:
-                print 'Warning: no file found. Skipping index %d' % (ind)
+                print('Warning: no file found. Skipping index %d' % (ind))
                 continue  # no file to process. skip this index
-            for boardId in xrange(numBoards):
+            for boardId in range(numBoards):
                 boardName = self.opts.BoardName[boardId]
                 fileName = '%sExperiment%dTotalFiring%d_Pack_%d.bin' %\
                     (boardName, numExpr, totFirings, ind)
@@ -263,12 +265,12 @@ class Unpack:
                     tempData = tempData[0:2*dataBlockSize, :]
                 packData.append(tempData)
             if any([x is None for x in packData]):
-                print 'Warning: broken raw files. Skipping index %d' % (ind)
+                print('Warning: broken raw files. Skipping index %d' % (ind))
                 continue
             # interpret raw data into channel format
             # see daq_loop.c for original implementation
             chanMap = generateChanMap(numElements)
-            print 'Starting daq_loop...'
+            print('Starting daq_loop...')
             chnData, chnDataAll = daq_loop(packData[0], packData[1],
                                            chanMap, numExpr)
             # fix bad channels
@@ -325,18 +327,18 @@ class ReconUtility:
         # to be consistent with the MATLAB's implementation ddof=1
         tempStd = np.std(refImpulseEnv, axis=0, ddof=1)
         delayIdx = -np.ones(nSteps)*18/fs
-        for n in xrange(nSteps):
+        for n in range(nSteps):
             if (impuMax[n] > 3.0*tempStd[n] and impuMax[n] > 0.1):
                 tmpThresh = 2*tempStd[n]
                 m1 = 14
-                for ii in xrange(14, 50):
+                for ii in range(14, 50):
                     if refImpulse[ii-1, n] > -tmpThresh and\
                             refImpulse[ii, n] < -tmpThresh:
                         m1 = ii
                         break
                 m2 = m1
                 m3 = m1
-                for ii in xrange(9, m1+1):
+                for ii in range(9, m1+1):
                     if refImpulse[ii-1, n] < tmpThresh and\
                             refImpulse[ii, n] > tmpThresh:
                         m2 = ii
@@ -357,7 +359,7 @@ class ReconUtility:
         sys.stdout.write(msg)
         sys.stdout.flush()
         if current == total:
-            print '\tDone'
+            print('\tDone')
 
 
 class Reconstruction2D:
@@ -399,7 +401,7 @@ class Reconstruction2D:
         # use the fisrt z step data to calibrate DAQ delay
         delayIdx = ReconUtility.findDelayIdx(paData[:, :, 0], fs)
         # find index map and angular weighting for backprojection
-        print 'Calculating geometry dependent back-projection paramters'
+        print('Calculating geometry dependent back-projection paramters')
         (self.idxAll, self.angularWeight, self.totalAngularWeight) =\
             find_index_map_and_angular_weight(nSteps, xImg, yImg, xReceive,
                                               yReceive, delayIdx, vm, fs)
@@ -420,8 +422,8 @@ class Reconstruction2D:
         nPixely = self.nPixely
         self.idxAll[self.idxAll > nSamples] = 1
         # back-projection
-        print 'Back-projection starts...'
-        for z in xrange(zSteps):
+        print('Back-projection starts...')
+        for z in range(zSteps):
             # remove DC
             paDataDC = np.dot(np.ones((nSamples - 99, 1)),
                               np.mean(paData[99:nSamples, :, z],
@@ -431,7 +433,7 @@ class Reconstruction2D:
             paImg = recon_loop(temp, self.idxAll, self.angularWeight,
                                nPixelx, nPixely, nSteps)
             if paImg is None:
-                print 'WARNING: None returned as 2D reconstructed image!'
+                print('WARNING: None returned as 2D reconstructed image!')
             paImg = paImg/self.totalAngularWeight
             self.reImg[:, :, z] = paImg
             ReconUtility.updateProgress(z+1, zSteps)
@@ -441,10 +443,10 @@ class Reconstruction2D:
     def reconstruct(self, paData):
         self.initRecon(paData)
         if self.opts.wiener:
-            print 'Wiener filtering raw data...'
+            print('Wiener filtering raw data...')
             paData = subfunc_wiener(paData)
         if self.opts.exact:
-            print 'Filtering raw data for exact reconstruction...'
+            print('Filtering raw data for exact reconstruction...')
             paData = subfunc_exact(paData)
         self.backprojection(paData)
         return self.reImg
@@ -459,8 +461,9 @@ class Reconstruction2DUnipolar(Reconstruction2D):
 
     def singleSector(self, paSlice, startInd):
         endInd = startInd + self.sectorSize
-        indRange = range(startInd, endInd) + \
-            range(startInd+self.nSteps/2, endInd+self.nSteps/2)
+        indRange = list(range(startInd, endInd)) + \
+            list(range(startInd+floor(self.nSteps/2),
+                       endInd+floor(self.nSteps/2)))
         indRange = [ind if ind < 512 else ind-512 for ind in indRange]
         idxAll = np.copy(self.idxAll[:, :, indRange], order='F')
         angularWeight = np.copy(self.angularWeight[:, :, indRange],
@@ -477,8 +480,8 @@ class Reconstruction2DUnipolar(Reconstruction2D):
 
     def doRecon(self, paData):
         nSamples = self.nSamples
-        print 'Reconstruction starts...'
-        for z in xrange(self.zSteps):
+        print('Reconstruction starts...')
+        for z in range(self.zSteps):
             # remove DC
             paDataDC = np.dot(np.ones((nSamples - 99, 1)),
                               np.mean(paData[99:nSamples, :, z],
@@ -486,7 +489,7 @@ class Reconstruction2DUnipolar(Reconstruction2D):
             paData[99:nSamples, :, z] = paData[99:nSamples, :, z] - paDataDC
             paSlice = np.copy(paData[:, :, z], order='F')
             reImgSlice = np.zeros((self.nPixely, self.nPixelx), order='F')
-            for startInd in xrange(0, self.nSteps/2, self.sectorStep):
+            for startInd in range(0, floor(self.nSteps/2), self.sectorStep):
                 paImg = self.singleSector(paSlice, startInd)
                 reImgSlice = reImgSlice + paImg
             self.reImg[:, :, z] = reImgSlice
@@ -495,10 +498,10 @@ class Reconstruction2DUnipolar(Reconstruction2D):
     def reconstruct(self, paData):
         self.initRecon(paData)
         if self.opts.wiener:
-            print 'Wiener filtering raw data...'
+            print('Wiener filtering raw data...')
             paData = subfunc_wiener(paData)
         if self.opts.exact:
-            print 'Filtering raw data for exact reconstruction...'
+            print('Filtering raw data for exact reconstruction...')
             paData = subfunc_exact(paData)
         self.doRecon(paData)
         return self.reImg
