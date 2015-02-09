@@ -1,33 +1,9 @@
+#include "ring_pact_speedup.h"
+
 #include <Python.h>
 #include <numpy/arrayobject.h>
-#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-// implementation function
-void recon_loop_imp(const npy_double *pa_data,
-		    const npy_uint64 *idxAll,
-		    const npy_double *angularWeight,
-		    int nPixelx, int nPixely, int nSteps,
-		    int nTimeSamples,
-		    npy_double *pa_img) {
-  int iStep, y, x, icount, pcount, iskip;
-
-  icount = 0;
-  for (iStep=0; iStep<nSteps; iStep++) {
-    pcount = 0;
-    iskip = nTimeSamples * iStep - 1;
-    /* iskip = 1301 * iStep - 1; */
-    for (y=0; y<nPixely; y++) {
-      for (x=0; x<nPixelx; x++) {
-	pa_img[pcount++] +=
-	  pa_data[(int)idxAll[icount]+iskip] *
-	  angularWeight[icount];
-	icount++;
-      }
-    }
-  }
-}
 
 // interface function
 // inputs:
@@ -89,54 +65,6 @@ static PyObject* recon_loop(PyObject* self, PyObject* args) {
   // failed situation
  fail:
   return Py_None;
-}
-
-npy_double round(npy_double d) {
-  return (d>0.0 ? floor(d+0.5) : floor(d-0.5));
-}
-
-void find_index_map_and_angular_weight_imp
-(const int nSteps, const npy_double *xImg, const npy_double *yImg,
- const npy_double *xReceive, const npy_double *yReceive, const npy_double *delayIdx,
- const npy_double vm, const npy_double fs, const long nSize2D,
- npy_uint64 *idxAll, npy_double *angularWeight, npy_double *totalAngularWeight) {
-  /* Reference python codes
-def find_index_map_and_angular_weight\
-    (nSteps, xImg, yImg, xReceive, yReceive, delayIdx, vm, fs):
-    totalAngularWeight = np.zeros(xImg.shape, order='F')
-    idxAll = np.zeros((xImg.shape[0], xImg.shape[1], nSteps),\
-                      dtype=np.uint, order='F')
-    angularWeight = np.zeros((xImg.shape[0], xImg.shape[1], nSteps),\
-                             order='F')
-    for n in range(nSteps):
-        r0 = np.sqrt(np.square(xReceive[n]) + np.square(yReceive[n]))
-        dx = xImg - xReceive[n]
-        dy = yImg - yReceive[n]
-        rr0 = np.sqrt(np.square(dx) + np.square(dy))
-        cosAlpha = np.abs((-xReceive[n]*dx-yReceive[n]*dy)/r0/rr0)
-        cosAlpha = np.minimum(cosAlpha, 0.999)
-        angularWeight[:,:,n] = cosAlpha/np.square(rr0)
-        totalAngularWeight = totalAngularWeight + angularWeight[:,:,n]
-        idx = np.around((rr0/vm - delayIdx[n]) * fs)
-        idxAll[:,:,n] = idx
-    return (idxAll, angularWeight, totalAngularWeight)
-  */
-
-  int n, i;
-  npy_double r0, rr0, dx, dy, cosAlpha;
-  for (n=0; n<nSteps; n++) {
-    r0 = sqrt(xReceive[n]*xReceive[n] + yReceive[n]*yReceive[n]);
-    for (i=0; i<nSize2D; i++) {
-      dx = xImg[i] - xReceive[n];
-      dy = yImg[i] - yReceive[n];
-      rr0 = sqrt(dx*dx + dy*dy);
-      cosAlpha = fabs((-xReceive[n]*dx-yReceive[n]*dy)/r0/rr0);
-      cosAlpha = cosAlpha<0.999 ? cosAlpha : 0.999;
-      angularWeight[n*nSize2D+i] = cosAlpha / (rr0 * rr0);
-      totalAngularWeight[i] += angularWeight[n*nSize2D+i];
-      idxAll[n*nSize2D+i] = (npy_uint64)round((rr0/vm - delayIdx[n]) * fs);
-    }
-  }
 }
 
 // speed-up implementation of find_index_map_and_angular_weight
@@ -223,6 +151,94 @@ static PyObject* find_index_map_and_angular_weight(PyObject* self, PyObject* arg
   return returnTuple;
 }
 
+/**
+ * interface function: daq_loop
+ * inputs:
+ *   packData1: numpy.ndarray, ndim=2, dtype=uint16, 2*dataBlockSize x packSize
+ *   packData2: same as packData1
+ *   chanMap: numpy.ndarray, ndim=1, dtype=uint32
+ *   numExperiments: int
+ * output:
+ *   chndata: numpy.ndarray, ndim=2, dtype=double, DataBlockSize x NumElements
+ *   chndata_all: numpy.ndarray, ndim=2, dtype=double,
+ *     DataBlockSize x NumElements*numExperiments
+ */
+static PyObject *daq_loop(PyObject *self, PyObject *args) {
+  // definitions
+  PyArrayObject *p_packData1, *p_packData2, *p_chanMap;
+  PyArrayObject *p_packData1_copy, *p_packData2_copy;
+  PyObject *p_chndata, *p_chndata_all;
+  npy_intp dim_chndata[2];
+  npy_intp dim_chndata_all[2];
+  int numExperiments;
+  int packSize;
+  npy_uint32 *packData1;
+  npy_uint32 *packData2;
+  npy_uint32 *chanMap;
+  npy_double *chndata;
+  npy_double *chndata_all;
+  // extract arguments
+  PyObject *returnTuple = PyTuple_New(2);
+  if (!PyArg_ParseTuple(args, "O!O!O!i",
+        &PyArray_Type, &p_packData1,
+        &PyArray_Type, &p_packData2,
+        &PyArray_Type, &p_chanMap,
+        &numExperiments)) {
+    PyTuple_SET_ITEM(returnTuple, 0, Py_None);
+    PyTuple_SET_ITEM(returnTuple, 1, Py_None);
+    return returnTuple;
+  }
+  // copy pack data arrays
+  p_packData1_copy = (PyArrayObject *)
+    PyArray_ContiguousFromAny((PyObject *)p_packData1, NPY_UINT32, 0, 0);
+  p_packData2_copy = (PyArrayObject *)
+    PyArray_ContiguousFromAny((PyObject *)p_packData2, NPY_UINT32, 0, 0);
+  // extract argument data
+  packData1 = (npy_uint32 *)PyArray_DATA(p_packData1_copy);
+  packData2 = (npy_uint32 *)PyArray_DATA(p_packData2_copy);
+  chanMap = (npy_uint32 *)PyArray_DATA(p_chanMap);
+  packSize = PyArray_SHAPE(p_packData1_copy)[1];
+  // build output array objects
+  dim_chndata[0] = DataBlockSize;
+  dim_chndata[1] = NumElements;
+  dim_chndata_all[0] = DataBlockSize;
+  dim_chndata_all[1] = NumElements*numExperiments;
+  p_chndata = PyArray_ZEROS(2, dim_chndata, NPY_DOUBLE, 1);
+  p_chndata_all = PyArray_ZEROS(2, dim_chndata_all, NPY_DOUBLE, 1);
+  chndata = (npy_double *)PyArray_DATA(p_chndata);
+  chndata_all = (npy_double *)PyArray_DATA(p_chndata_all);
+
+  // call the implementation
+  daq_loop_imp(packData1, packData2, chanMap, numExperiments, packSize,
+      chndata, chndata_all);
+
+  // return results
+  PyTuple_SET_ITEM(returnTuple, 0, p_chndata);
+  PyTuple_SET_ITEM(returnTuple, 1, p_chndata_all);
+  return returnTuple;
+}
+
+/**
+ * interface function: generateChanMap
+ * inputs:
+ *   numElement: int
+ * outputs:
+ *   chanMap: numpy.ndarray, ndim=1, dtype=numpy.uint32
+ */
+static PyObject *generateChanMap(PyObject *self, PyObject *args) {
+  npy_intp numElements;
+  PyObject *p_chanMap;
+  npy_uint32 *chanMap;
+  // extract argument tuple
+  if (!PyArg_ParseTuple(args, "i", &numElements)) { return Py_None; }
+  p_chanMap = PyArray_ZEROS(1, &numElements, NPY_UINT32, 1);
+  chanMap = (npy_uint32 *)PyArray_DATA(p_chanMap);
+  // call the actual function
+  generateChanMap_imp(numElements, chanMap);
+  // return result
+  return p_chanMap;
+}
+
 
 // module initialization codes
 // modified to work with both Python 2 and 3
@@ -244,22 +260,26 @@ static PyObject * error_out(PyObject *m) {
   return NULL;
 }
 
-static PyMethodDef ReconMethods[] = {
+static PyMethodDef RingPactSpeedupMethods[] = {
   {"recon_loop", recon_loop, METH_VARARGS, "Reconstruction loop"},
   {"find_index_map_and_angular_weight", find_index_map_and_angular_weight,
    METH_VARARGS, "Find index map and angular weights for back-projection"},
+  {"generateChanMap", generateChanMap, METH_VARARGS,
+  "Generate correct channel map based DAQ indices."},
+  {"daq_loop", daq_loop, METH_VARARGS,
+  "Fast version of the unpacking function"},
   {"error_out", (PyCFunction)error_out, METH_NOARGS, NULL},
   {NULL, NULL, 0, NULL} // the end
 };
 
 #if PY_MAJOR_VERSION >= 3
 
-static int recon_loop_traverse(PyObject *m, visitproc visit, void *arg) {
+static int ring_pact_speedup_traverse(PyObject *m, visitproc visit, void *arg) {
   Py_VISIT(GETSTATE(m)->error);
   return 0;
 }
 
-static int recon_loop_clear(PyObject *m) {
+static int ring_pact_speedup_clear(PyObject *m) {
   Py_CLEAR(GETSTATE(m)->error);
   return 0;
 }
@@ -269,10 +289,10 @@ static struct PyModuleDef moduledef = {
   "recon_loop",
   NULL,
   sizeof(struct module_state),
-  ReconMethods,
+  RingPactSpeedupMethods,
   NULL,
-  recon_loop_traverse,
-  recon_loop_clear,
+  ring_pact_speedup_traverse,
+  ring_pact_speedup_clear,
   NULL
 };
 
@@ -290,13 +310,13 @@ PyObject *initializeModule(void) {
 #if PY_MAJOR_VERSION >= 3
   PyObject *module = PyModule_Create(&moduledef);
 #else
-  PyObject *module = Py_InitModule("recon_loop", ReconMethods);
+  PyObject *module = Py_InitModule("ring_pact_speedup", RingPactSpeedupMethods);
 #endif
 
   if (module == NULL) {
     INITERROR;
   }
-  struct module_state *st = GETSTATE(module);
+  /*struct module_state *st = GETSTATE(module);*/
   // IMPORTANT: this must be called
   import_array();
   // always return the object.
@@ -305,11 +325,11 @@ PyObject *initializeModule(void) {
 }
 
 #if PY_MAJOR_VERSION >= 3
-PyObject *PyInit_recon_loop(void) {
+PyObject *PyInit_ring_pact_speedup(void) {
   return initializeModule();
 }
 #else
-void initrecon_loop(void) {
+void initring_pact_speedup(void) {
   initializeModule();
 }
 #endif

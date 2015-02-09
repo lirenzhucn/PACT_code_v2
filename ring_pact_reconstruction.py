@@ -13,8 +13,10 @@ from os.path import expanduser, normpath, join
 from os import listdir, rename
 import sys
 
-from unpack_speedup import daq_loop, generateChanMap
-from recon_loop import recon_loop, find_index_map_and_angular_weight
+# from unpack_speedup import daq_loop, generateChanMap
+# from recon_loop import recon_loop, find_index_map_and_angular_weight
+from ring_pact_speedup import daq_loop, generateChanMap
+from ring_pact_speedup import recon_loop, find_index_map_and_angular_weight
 from preprocess import subfunc_wiener, subfunc_exact
 
 
@@ -37,8 +39,9 @@ class UnpackUtility:
             f = open(filePath)
             tempData = np.fromfile(f, dtype=dtype)
             f.close()
-            return tempData.reshape((6*totFirings*numExpr,
-                                     packSize)).T
+            tempData = tempData.reshape((6*totFirings*numExpr, packSize)).T
+            tempData = np.copy(tempData, order='C')
+            return tempData
         except:
             return None
 
