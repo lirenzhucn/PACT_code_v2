@@ -115,10 +115,15 @@ def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
         recon = Reconstruction2D(opts)
     else:
         recon = Reconstruction2DUnipolar(opts)
+    (basename, ext) = os.path.splitext(input_file)
+    in_format = ext[1:]
     # read out data
-    f = h5py.File(input_file, 'r')
-    paData = np.array(f['chndata_all'], order='F')
-    f.close()
+    if in_format == 'hdf5':
+        f = h5py.File(input_file, 'r')
+        paData = np.array(f['chndata_all'], order='F')
+        f.close()
+    elif in_format == 'npy':
+        paData = np.load(input_file)
     # reconstruction
     reImg = recon.reconstruct(paData)
     out_file = makeOutputFileName(out_file, opts.__dict__)
@@ -135,6 +140,9 @@ def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
         print('saving image data to ' + out_file)
         imageList = [reImg[:, :, i] for i in range(reImg.shape[2])]
         fi.write_multipage(imageList, out_file)
+    elif out_format == 'npy':
+        print('saving image data to ' + out_file)
+        np.save(out_file, reImg)
     else:  # including 'fits'
         print('saving image data to ' + out_file)
         hdu = pyfits.PrimaryHDU(reImg)
@@ -156,6 +164,9 @@ def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
         print('saving image data to ' + out_file)
         imageList = [reImg8bit[:, :, i] for i in range(reImg.shape[2])]
         fi.write_multipage(imageList, out_file)
+    elif out_format == 'npy':
+        print('saving image data to ' + out_file)
+        np.save(out_file, reImg8bit)
     else:  # including 'fits'
         print('saving image data to ' + out_file)
         hdu = pyfits.PrimaryHDU(reImg8bit)

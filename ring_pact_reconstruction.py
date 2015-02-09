@@ -444,6 +444,9 @@ class Reconstruction2D:
         # return self.reImg
 
     def reconstruct(self, paData):
+        if paData.ndim == 2:
+            (nSamples, nSteps) = paData.shape
+            paData = np.reshape(paData, (nSamples, nSteps, 1))
         self.initRecon(paData)
         if self.opts.wiener:
             print('Wiener filtering raw data...')
