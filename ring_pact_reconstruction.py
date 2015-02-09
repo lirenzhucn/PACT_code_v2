@@ -382,6 +382,8 @@ class Reconstruction2D:
         yCenter = self.opts.yCenter
         fs = self.opts.fs
         R = self.opts.R
+        autoDelay = self.opts.autoDelay
+        delay = self.opts.delay
         # start here
         (nSamples, nSteps, zSteps) = paData.shape
         anglePerStep = 2*np.pi/nSteps
@@ -401,8 +403,11 @@ class Reconstruction2D:
             anglePerStep + iniAngle/180.0*np.pi
         xReceive = np.cos(detectorAngle)*R
         yReceive = np.sin(detectorAngle)*R
-        # use the fisrt z step data to calibrate DAQ delay
-        delayIdx = ReconUtility.findDelayIdx(paData[:, :, 0], fs)
+        if autoDelay:
+            # use the fisrt z step data to calibrate DAQ delay
+            delayIdx = ReconUtility.findDelayIdx(paData[:, :, 0], fs)
+        else:
+            delayIdx = delay * np.ones(nSteps)
         # find index map and angular weighting for backprojection
         print('Calculating geometry dependent back-projection paramters')
         (self.idxAll, self.angularWeight, self.totalAngularWeight) =\

@@ -23,6 +23,8 @@ RECON_OPTS_DICT = {
     # preprocess flags
     'exact': False,
     'wiener': False,
+    'autoDelay': True,
+    'delay': 6.0,  # us
 }
 
 UNPACK_OPTS_DICT = {
