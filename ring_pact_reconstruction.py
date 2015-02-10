@@ -463,6 +463,27 @@ class Reconstruction2D:
         return self.reImg
 
 
+class Reconstruction2DUnipolar_v2(Reconstruction2D):
+
+    def __init__(self, opts):
+        super().__init__(opts)
+
+    def reconstruct(self, paData):
+        if paData.ndim == 2:
+            (nSamples, nSteps) = paData.shape
+            paData = np.reshape(paData, (nSamples, nSteps, 1))
+        (nSamples, nSteps, zSteps) = paData.shape
+        reImg1 = super().reconstruct(paData)
+        # take 90-degree phase shift
+        import scipy.fftpack as spfp
+        for z in range(zSteps):
+            for n in range(nSteps):
+                paData[:, n, z] = spfp.hilbert(paData[:, n, z])
+        reImg2 = super().reconstruct(paData)
+        self.reImg = np.sqrt(reImg1 ** 2 + reImg2 ** 2)
+        return self.reImg
+
+
 class Reconstruction2DUnipolar(Reconstruction2D):
 
     def __init__(self, opts, sectorSize=64, sectorStep=64):

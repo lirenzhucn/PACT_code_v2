@@ -4,7 +4,8 @@ from tkinter import Label
 from TkCommonDialog import CommonDialog, NumberEntry, ValCheckbutton
 from ring_pact_reconstruction import Options
 from ring_pact_reconstruction import Unpack, UnpackScan
-from ring_pact_reconstruction import Reconstruction2D, Reconstruction2DUnipolar
+from ring_pact_reconstruction import Reconstruction2D
+from ring_pact_reconstruction import Reconstruction2DUnipolar_v2
 import numpy as np
 
 RECON_OPTS_DICT = {
@@ -116,7 +117,7 @@ def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
     if bipolar:
         recon = Reconstruction2D(opts)
     else:
-        recon = Reconstruction2DUnipolar(opts)
+        recon = Reconstruction2DUnipolar_v2(opts)
     (basename, ext) = os.path.splitext(input_file)
     in_format = ext[1:]
     # read out data
