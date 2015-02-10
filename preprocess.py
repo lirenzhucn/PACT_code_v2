@@ -136,5 +136,5 @@ def subfunc_exact(padata):
     freq = freq * 1j
     freq.resize((nSamples, 1, 1))
     tSeq.resize((nSamples, 1, 1))
-    diff = tSeq * np.real(fftpack.ifft(spectrum * freq, axis=0))
+    diff = tSeq * np.real(fftpack.ifft(1j * spectrum * freq, axis=0))
     return padata - diff
