@@ -101,6 +101,7 @@ import pyfits
 import os.path
 import skimage.io._plugins.freeimage_plugin as fi
 import argh
+from time import time
 
 
 @argh.arg('input-file', type=str, help='input raw data file')
@@ -108,7 +109,9 @@ import argh
 @argh.arg('-8', '--eight-bit',
           help='save 8-bit version for display too.')
 @argh.arg('-bp', '--bipolar', help='whether use bipolar recon.')
-def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
+@argh.arg('-t', '--timeit', help='performance info')
+def reconstruct(input_file, out_file,
+                eight_bit=False, bipolar=False, timeit=False):
     print('start reconstruction...')
     opts = ConfigDialog.getReconOptsTk()
     if opts is None:
@@ -128,7 +131,12 @@ def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
     elif in_format == 'npy':
         paData = np.load(input_file)
     # reconstruction
+    if timeit:
+        startTime = time()
     reImg = recon.reconstruct(paData)
+    if timeit:
+        endTime = time()
+        print('Reconstruction took %.2f seconds' % (endTime - startTime))
     out_file = makeOutputFileName(out_file, opts.__dict__)
     dirname = os.path.dirname(input_file)
     out_file = os.path.join(dirname, out_file)
