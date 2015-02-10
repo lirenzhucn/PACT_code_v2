@@ -120,7 +120,7 @@ def reconstruct(input_file, out_file, eight_bit=False, bipolar=False):
     (basename, ext) = os.path.splitext(input_file)
     in_format = ext[1:]
     # read out data
-    if in_format == 'hdf5':
+    if in_format == 'h5':
         f = h5py.File(input_file, 'r')
         paData = np.array(f['chndata_all'], order='F')
         f.close()
