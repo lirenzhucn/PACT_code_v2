@@ -7,26 +7,27 @@ from ring_pact_reconstruction import Unpack, UnpackScan
 from ring_pact_reconstruction import Reconstruction2D
 from ring_pact_reconstruction import Reconstruction2DUnipolar_v2
 import numpy as np
+from collections import OrderedDict
 
-RECON_OPTS_DICT = {
+RECON_OPTS_DICT = OrderedDict([
     # reconstructed image
-    'ySize': 25.0,  # mm
-    'xSize': 25.0,  # mm
-    'yCenter': 0.0,  # mm
-    'xCenter': 0.0,  # mm
-    'iniAngle': 225.0,  # degrees
-    'spacing': 0.05,  # mm
+    ('ySize', 25.0),  # mm
+    ('xSize', 25.0),  # mm
+    ('yCenter', 0.0),  # mm
+    ('xCenter', 0.0),  # mm
+    ('iniAngle', 225.0),  # degrees
+    ('spacing', 0.05),  # mm
     # scanning geometry and parameters
-    'R': 25.0,  # mm, scanning radius
-    'fs': 40.0,  # MHz, sampling rate
+    ('R', 25.0),  # mm, scanning radius
+    ('fs', 40.0),  # MHz, sampling rate
     # other tunables
-    'vm': 1.510,  # mm/us, speed of sound
+    ('vm', 1.510),  # mm/us, speed of sound
     # preprocess flags
-    'exact': False,
-    'wiener': False,
-    'autoDelay': True,
-    'delay': 6.0,  # us
-}
+    ('exact', False),
+    ('wiener', False),
+    ('autoDelay', True),
+    ('delay', 6.0),  # us
+])
 
 UNPACK_OPTS_DICT = {
     'BoardName': ['Board2004', 'Board9054'],
@@ -53,7 +54,7 @@ class ConfigDialog(CommonDialog):
 
     def body(self, master):
         rowIdx = 0
-        self.keys = sorted(self.resultDict.keys())
+        self.keys = self.resultDict.keys()
         for key in self.keys:
             val = self.resultDict[key]
             if isinstance(val, bool):
