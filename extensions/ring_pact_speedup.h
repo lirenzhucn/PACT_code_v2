@@ -90,11 +90,11 @@ void generateChanMap_imp(const int numElements, uint32_t *chanMap) {
   }
 }
 
-const static int hex3ff = 1023;
-const static int DataBlockSize = 1300;
-const static int NumElements = 512;
-const static int TotFirings = 8;
-const static int NumDaqChnsBoard = 32;
+#define hex3ff 1023
+#define DataBlockSize 1300
+#define NumElements 512
+#define TotFirings 8
+#define NumDaqChnsBoard 32
 
 void daq_loop_imp(uint32_t *packData1, uint32_t *packData2,
     uint32_t *chanMap, const int numExperiments, const int packSize,
