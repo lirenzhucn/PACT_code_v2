@@ -463,7 +463,7 @@ class Reconstruction2D:
         return self.reImg
 
 
-class Reconstruction2DUnipolar_v2(Reconstruction2D):
+class Reconstruction2DUnipolarHilbert(Reconstruction2D):
 
     def __init__(self, opts):
         super().__init__(opts)
@@ -484,7 +484,7 @@ class Reconstruction2DUnipolar_v2(Reconstruction2D):
         return self.reImg
 
 
-class Reconstruction2DUnipolar(Reconstruction2D):
+class Reconstruction2DUnipolarMultiview(Reconstruction2D):
 
     def __init__(self, opts, sectorSize=64, sectorStep=64):
         Reconstruction2D.__init__(self, opts)

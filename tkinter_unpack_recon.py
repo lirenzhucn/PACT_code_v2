@@ -5,7 +5,8 @@ from TkCommonDialog import CommonDialog, NumberEntry, ValCheckbutton
 from ring_pact_reconstruction import Options
 from ring_pact_reconstruction import Unpack, UnpackScan
 from ring_pact_reconstruction import Reconstruction2D
-from ring_pact_reconstruction import Reconstruction2DUnipolar_v2
+from ring_pact_reconstruction import Reconstruction2DUnipolarHilbert
+from ring_pact_reconstruction import Reconstruction2DUnipolarMultiview
 import numpy as np
 from collections import OrderedDict
 
@@ -27,6 +28,7 @@ RECON_OPTS_DICT = OrderedDict([
     ('wiener', False),
     ('autoDelay', True),
     ('delay', 6.0),  # us
+    ('method', 'bipolar'),  # method string
 ])
 
 UNPACK_OPTS_DICT = {
@@ -103,25 +105,16 @@ import os.path
 import skimage.io._plugins.freeimage_plugin as fi
 import argh
 from time import time
+import json
 
 
-@argh.arg('input-file', type=str, help='input raw data file')
-@argh.arg('out-file', type=str, help='output file name pattern')
-@argh.arg('-8', '--eight-bit',
-          help='save 8-bit version for display too.')
-@argh.arg('-bp', '--bipolar', help='whether use bipolar recon.')
-@argh.arg('-t', '--timeit', help='performance info')
-def reconstruct(input_file, out_file,
-                eight_bit=False, bipolar=False, timeit=False):
-    print('start reconstruction...')
-    opts = ConfigDialog.getReconOptsTk()
-    if opts is None:
-        print('User cancelled reconstruction...')
-        return
-    if bipolar:
+def reconstruct_workhorse(input_file, output_file, opts, timeit):
+    if opts.method == 'bipolar':
         recon = Reconstruction2D(opts)
-    else:
-        recon = Reconstruction2DUnipolar_v2(opts)
+    elif opts.method == 'unipolar-hilbert':
+        recon = Reconstruction2DUnipolarHilbert(opts)
+    elif opts.method == 'unipolar-multiview':
+        recon = Reconstruction2DUnipolarMultiview(opts)
     (basename, ext) = os.path.splitext(input_file)
     in_format = ext[1:]
     # read out data
@@ -131,6 +124,9 @@ def reconstruct(input_file, out_file,
         f.close()
     elif in_format == 'npy':
         paData = np.load(input_file)
+    else:
+        print('input format %s not supported' % in_format)
+        return
     # reconstruction
     if timeit:
         startTime = time()
@@ -138,51 +134,52 @@ def reconstruct(input_file, out_file,
     if timeit:
         endTime = time()
         print('Reconstruction took %.2f seconds' % (endTime - startTime))
-    out_file = makeOutputFileName(out_file, opts.__dict__)
+    output_file = makeOutputFileName(output_file, opts.__dict__)
     dirname = os.path.dirname(input_file)
-    out_file = os.path.join(dirname, out_file)
-    (basename, ext) = os.path.splitext(out_file)
+    output_file = os.path.join(dirname, output_file)
+    (basename, ext) = os.path.splitext(output_file)
     out_format = ext[1:]
-    if out_format == 'hdf5':
-        print('saving image data to ' + out_file)
-        f = h5py.File(out_file, 'w')
+    if out_format == 'h5':
+        print('saving image data to ' + output_file)
+        f = h5py.File(output_file, 'w')
         f['reImg'] = reImg
         f.close()
     elif out_format == 'tiff':
-        print('saving image data to ' + out_file)
+        print('saving image data to ' + output_file)
         imageList = [reImg[:, :, i] for i in range(reImg.shape[2])]
-        fi.write_multipage(imageList, out_file)
+        fi.write_multipage(imageList, output_file)
     elif out_format == 'npy':
-        print('saving image data to ' + out_file)
-        np.save(out_file, reImg)
+        print('saving image data to ' + output_file)
+        np.save(output_file, reImg)
     else:  # including 'fits'
-        print('saving image data to ' + out_file)
+        print('saving image data to ' + output_file)
         hdu = pyfits.PrimaryHDU(reImg)
-        hdu.writeto(out_file, clobber=True)
-    # save 8-bit image for display if needed
-    if not eight_bit:
+        hdu.writeto(output_file, clobber=True)
+
+
+@argh.arg('opts-file', type=str, help='option json file')
+@argh.arg('input-file', type=str, help='input raw data file')
+@argh.arg('output-file', type=str, help='output file name pattern')
+@argh.arg('-t', '--timeit', help='performance info')
+def reconstruct(opts_file, input_file, output_file, timeit=False):
+    print('start reconstruction...')
+    # read options and replace unspecified items by defaults
+    with open(opts_file) as fid:
+        opts = json.load(fid, object_pairs_hook=Options)
+        print(json.dumps(opts.__dict__, indent=2))
+    reconstruct_workhorse(input_file, output_file, opts, timeit)
+
+
+@argh.arg('input-file', type=str, help='input raw data file')
+@argh.arg('output-file', type=str, help='output file name pattern')
+@argh.arg('-t', '--timeit', help='performance info')
+def reconstruct_gui(input_file, output_file, timeit=False):
+    print('start reconstruction...')
+    opts = ConfigDialog.getReconOptsTk()
+    if opts is None:
+        print('User cancelled reconstruction...')
         return
-    reImg8bit = ((reImg - np.amin(reImg)) /
-                 (np.amax(reImg) - np.amin(reImg)) * 255.0).\
-        astype(np.uint8)
-    (basename, ext) = os.path.splitext(out_file)
-    out_file = basename + '_8bit' + ext
-    if out_format == 'hdf5':
-        print('saving image data to ' + out_file)
-        f = h5py.File(out_file, 'w')
-        f['reImg'] = reImg8bit
-        f.close()
-    elif out_format == 'tiff':
-        print('saving image data to ' + out_file)
-        imageList = [reImg8bit[:, :, i] for i in range(reImg.shape[2])]
-        fi.write_multipage(imageList, out_file)
-    elif out_format == 'npy':
-        print('saving image data to ' + out_file)
-        np.save(out_file, reImg8bit)
-    else:  # including 'fits'
-        print('saving image data to ' + out_file)
-        hdu = pyfits.PrimaryHDU(reImg8bit)
-        hdu.writeto(out_file, clobber=True)
+    reconstruct_workhorse(input_file, output_file, opts, timeit)
 
 
 @argh.arg('-i', '--ind', type=int, help='index to process')
@@ -197,8 +194,7 @@ def unpack(src_dir, ind=-1):
     unpack.unpack()
 
 
-@argh.arg('src_dir', type=str,
-          help='path to the source data directory')
+@argh.arg('src_dir', type=str, help='path to the source data directory')
 @argh.arg('min_ind', type=int, help='starting index')
 @argh.arg('max_ind', type=int, help='ending index')
 def unpack_scan(src_dir, min_ind, max_ind):
@@ -213,4 +209,4 @@ def unpack_scan(src_dir, min_ind, max_ind):
 
 
 if __name__ == '__main__':
-    argh.dispatch_commands((unpack, unpack_scan, reconstruct))
+    argh.dispatch_commands((unpack, unpack_scan, reconstruct, reconstruct_gui))
