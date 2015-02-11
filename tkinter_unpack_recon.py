@@ -104,10 +104,30 @@ def makeOutputFileName(pattern, params):
 import h5py
 import pyfits
 import os.path
-import skimage.io._plugins.freeimage_plugin as fi
 import argh
 from time import time
 import json
+import tifffile
+
+
+def normalizeAndConvert(inData, dtype=None):
+    outData = inData / np.max(np.abs(inData))
+    if dtype is None:
+        return outData
+    if dtype == 'uint8':
+        outData = outData * 255
+        return outData.astype(np.uint8)
+    elif dtype == 'int8':
+        outData = outData * 127
+        return outData.astype(np.int8)
+    elif dtype == 'uint16':
+        outData = outData * 65535
+        return outData.astype(np.uint16)
+    elif dtype == 'int16':
+        outData = outData * 32767
+        return outData.astype(np.int16)
+    else:
+        return outData
 
 
 def reconstruct_workhorse(input_file, output_file, opts, timeit):
@@ -146,10 +166,11 @@ def reconstruct_workhorse(input_file, output_file, opts, timeit):
         f = h5py.File(output_file, 'w')
         f['reImg'] = reImg
         f.close()
-    elif out_format == 'tiff':
+    elif out_format == 'tiff' or out_format == 'lsm':
+        print('converting into single...')
+        reImg = normalizeAndConvert(reImg, 'int16')
         print('saving image data to ' + output_file)
-        imageList = [reImg[:, :, i] for i in range(reImg.shape[2])]
-        fi.write_multipage(imageList, output_file)
+        tifffile.imsave(output_file, reImg)
     elif out_format == 'npy':
         print('saving image data to ' + output_file)
         np.save(output_file, reImg)
