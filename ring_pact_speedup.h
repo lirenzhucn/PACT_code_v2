@@ -1,13 +1,12 @@
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>
+//#include <omp.h>
 
 // implementation function
-void recon_loop_imp(const double *pa_data,
-		    const uint64_t *idxAll,
-		    const double *angularWeight,
-		    int nPixelx, int nPixely, int nSteps,
-		    int nTimeSamples,
-		    double *pa_img) {
+void recon_loop_imp(const double *pa_data, const uint64_t *idxAll,
+    const double *angularWeight, int nPixelx, int nPixely,
+    int nSteps, int nTimeSamples, double *pa_img) {
   int iStep, y, x, icount, pcount, iskip;
 
   icount = 0;
@@ -33,6 +32,7 @@ void backproject_loop_imp(const double *paData, const uint64_t *idxAll,
   int z, ind;
   const double *paDataPointer;
   double *paImgPointer;
+//#pragma omp parallel for private(paDataPointer, paImgPointer)
   for (z = 0; z < zSteps; z++) {
     paDataPointer = paData + z*nSamples*nSteps;
     paImgPointer = paImg + z*nPixely*nPixelx;

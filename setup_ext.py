@@ -9,7 +9,10 @@ RING_PACT_SPEEDUP_MODULE =\
     Extension('ring_pact_speedup',
               sources=['ring_pact_speedup.c'],
               depends=['ring_pact_speedup.h'],
-              include_dirs=[numpy.get_include()])
+              include_dirs=[numpy.get_include()],
+              extra_compile_args=['-fopenmp'],
+              extra_link_args=['-lgomp']
+              )
 
 # run the setup
 setup(ext_modules=[RING_PACT_SPEEDUP_MODULE])
