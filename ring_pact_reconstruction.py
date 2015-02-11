@@ -370,8 +370,11 @@ class Reconstruction2D:
     def __init__(self, opts):
         assert(isinstance(opts, Options))
         self.opts = opts
+        self.initialized = False
 
     def initRecon(self, paData):
+        if self.initialized:
+            return
         # parameters
         iniAngle = self.opts.iniAngle
         vm = self.opts.vm
@@ -421,6 +424,8 @@ class Reconstruction2D:
         self.zSteps = zSteps
         self.nPixelx = nPixelx
         self.nPixely = nPixely
+        # set flag
+        self.initialized = True
 
     def backprojection(self, paData):
         nSamples = self.nSamples
