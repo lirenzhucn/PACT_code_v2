@@ -67,6 +67,79 @@ static PyObject* recon_loop(PyObject* self, PyObject* args) {
   return Py_None;
 }
 
+/**
+ * interface function
+ * inputs:
+ *   paData: ndarray, ndim=3, nSamples*nSteps*zSteps, dtype=double
+ *   idxAll: ndarray, ndim=3, nPixely*nPixelx*nSteps, dtype=uint64
+ *   angularWeight: ndarray, ndim=3, nPixely*nPixelx*nSteps, dtype=double
+ *   totalAngularWeight: ndarray, ndim=2, nPixely*nPixelx, dtype=double
+ * output:
+ *   paImg: ndarray, ndim=3, nPixely*nPixelx*zSteps, dtype=double
+ */
+static PyObject *backproject_loop(PyObject *self, PyObject *args) {
+  // input/output arguments
+  PyArrayObject *p_paData, *p_idxAll, *p_angularWeight, *p_totalAngularWeight;
+  PyObject *p_paImg;
+  // input/output data pointers
+  npy_double *paData, *angularWeight, *totalAngularWeight;
+  npy_uint64 *idxAll;
+  npy_double *paImg;
+  // size variables to be extracted from arrays
+  int nPixelx, nPixely, zSteps, nSteps, nSamples;
+  // boolean flags for data validation
+  int paDataValid, idxAllValid, angularWeightValid, totalAngularWeightValid;
+  // size arrays
+  npy_intp dim_paImg[3];
+
+  // extract argument tuple
+  if (!PyArg_ParseTuple(args, "O!O!O!O!",
+        &PyArray_Type, &p_paData,
+        &PyArray_Type, &p_idxAll,
+        &PyArray_Type, &p_angularWeight,
+        &PyArray_Type, &p_totalAngularWeight)) {
+    printf("Error: Something wrong with input arguments.\n");
+    return Py_None;
+  }
+
+  // extract and validate variables
+  nSamples = PyArray_SHAPE(p_paData)[0];
+  nSteps = PyArray_SHAPE(p_paData)[1];
+  zSteps = PyArray_SHAPE(p_paData)[2];
+  nPixely = PyArray_SHAPE(p_idxAll)[0];
+  nPixelx = PyArray_SHAPE(p_idxAll)[1];
+  nSteps = PyArray_SHAPE(p_idxAll)[2];
+  paDataValid = (PyArray_ISFLOAT(p_paData)) &&
+    (PyArray_CHKFLAGS(p_paData, NPY_ARRAY_FARRAY));
+  idxAllValid = (PyArray_ISUNSIGNED(p_idxAll)) &&
+    (PyArray_CHKFLAGS(p_idxAll, NPY_ARRAY_FARRAY));
+  angularWeightValid = (PyArray_ISFLOAT(p_angularWeight)) &&
+    (PyArray_CHKFLAGS(p_angularWeight, NPY_ARRAY_FARRAY));
+  totalAngularWeightValid = (PyArray_ISFLOAT(p_totalAngularWeight)) &&
+    (PyArray_CHKFLAGS(p_totalAngularWeight, NPY_ARRAY_FARRAY));
+  if (!paDataValid || !idxAllValid || !angularWeightValid || !totalAngularWeightValid) {
+    printf("%d, %d, %d, %d\n",
+        paDataValid, idxAllValid, angularWeightValid, totalAngularWeightValid);
+    return Py_None;
+  }
+  paData = (npy_double *)PyArray_DATA(p_paData);
+  idxAll = (npy_uint64 *)PyArray_DATA(p_idxAll);
+  angularWeight = (npy_double *)PyArray_DATA(p_angularWeight);
+  totalAngularWeight = (npy_double *)PyArray_DATA(p_totalAngularWeight);
+  // create paImg object
+  dim_paImg[0] = nPixely;
+  dim_paImg[1] = nPixelx;
+  dim_paImg[2] = zSteps;
+  p_paImg = PyArray_ZEROS(3, dim_paImg, NPY_DOUBLE, 1);
+  paImg = (npy_double *)PyArray_DATA(p_paImg);
+
+  // call implementation
+  backproject_loop_imp(paData, idxAll, angularWeight, totalAngularWeight,
+      nPixelx, nPixely, zSteps, nSteps, nSamples, paImg);
+
+  return p_paImg;
+}
+
 // speed-up implementation of find_index_map_and_angular_weight
 // inputs:
 //   nSteps: int
@@ -262,12 +335,14 @@ static PyObject * error_out(PyObject *m) {
 
 static PyMethodDef RingPactSpeedupMethods[] = {
   {"recon_loop", recon_loop, METH_VARARGS, "Reconstruction loop"},
+  {"backproject_loop", backproject_loop, METH_VARARGS,
+   "Backprojection loop over z"},
   {"find_index_map_and_angular_weight", find_index_map_and_angular_weight,
    METH_VARARGS, "Find index map and angular weights for back-projection"},
   {"generateChanMap", generateChanMap, METH_VARARGS,
-  "Generate correct channel map based DAQ indices."},
+   "Generate correct channel map based DAQ indices."},
   {"daq_loop", daq_loop, METH_VARARGS,
-  "Fast version of the unpacking function"},
+   "Fast version of the unpacking function"},
   {"error_out", (PyCFunction)error_out, METH_NOARGS, NULL},
   {NULL, NULL, 0, NULL} // the end
 };

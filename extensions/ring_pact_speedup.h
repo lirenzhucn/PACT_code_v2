@@ -26,6 +26,24 @@ void recon_loop_imp(const double *pa_data,
   }
 }
 
+void backproject_loop_imp(const double *paData, const uint64_t *idxAll,
+    const double *angularWeight, const double *totalAngularWeight,
+    int nPixelx, int nPixely, int zSteps, int nSteps, int nSamples,
+    double *paImg) {
+  int z, ind;
+  const double *paDataPointer;
+  double *paImgPointer;
+  for (z = 0; z < zSteps; z++) {
+    paDataPointer = paData + z*nSamples*nSteps;
+    paImgPointer = paImg + z*nPixely*nPixelx;
+    recon_loop_imp(paDataPointer, idxAll, angularWeight,
+        nPixelx, nPixely, nSteps, nSamples, paImgPointer);
+    for (ind = 0; ind < nPixely*nPixelx; ind++) {
+      paImgPointer[ind] /= totalAngularWeight[ind];
+    }
+  }
+}
+
 double round(double d) {
   return (d>0.0 ? floor(d+0.5) : floor(d-0.5));
 }

@@ -17,6 +17,7 @@ import sys
 # from recon_loop import recon_loop, find_index_map_and_angular_weight
 from ring_pact_speedup import daq_loop, generateChanMap
 from ring_pact_speedup import recon_loop, find_index_map_and_angular_weight
+from ring_pact_speedup import backproject_loop
 from preprocess import subfunc_wiener, subfunc_exact
 
 
@@ -429,10 +430,10 @@ class Reconstruction2D:
 
     def backprojection(self, paData):
         nSamples = self.nSamples
-        nSteps = self.nSteps
+        # nSteps = self.nSteps
         zSteps = self.zSteps
-        nPixelx = self.nPixelx
-        nPixely = self.nPixely
+        # nPixelx = self.nPixelx
+        # nPixely = self.nPixely
         self.idxAll[self.idxAll > nSamples] = 1
         # back-projection
         print('Back-projection starts...')
@@ -442,6 +443,11 @@ class Reconstruction2D:
                               np.mean(paData[99:nSamples, :, z],
                                       axis=0).reshape((1, paData.shape[1])))
             paData[99:nSamples, :, z] = paData[99:nSamples, :, z] - paDataDC
+        # speedup implementation
+        self.reImg = backproject_loop(paData, self.idxAll, self.angularWeight,
+                                      self.totalAngularWeight)
+        """
+        for z in range(zSteps):
             temp = np.copy(paData[:, :, z], order='F')
             paImg = recon_loop(temp, self.idxAll, self.angularWeight,
                                nPixelx, nPixely, nSteps)
@@ -450,8 +456,7 @@ class Reconstruction2D:
             paImg = paImg/self.totalAngularWeight
             self.reImg[:, :, z] = paImg
             ReconUtility.updateProgress(z+1, zSteps)
-        # return the reconstructed image
-        # return self.reImg
+        """
 
     def reconstruct(self, paData):
         if paData.ndim == 2:
@@ -478,13 +483,13 @@ class Reconstruction2DUnipolarHilbert(Reconstruction2D):
             (nSamples, nSteps) = paData.shape
             paData = np.reshape(paData, (nSamples, nSteps, 1))
         (nSamples, nSteps, zSteps) = paData.shape
-        reImg1 = super().reconstruct(paData)
+        reImg1 = np.copy(super().reconstruct(paData))
         # take 90-degree phase shift
         import scipy.fftpack as spfp
         for z in range(zSteps):
             for n in range(nSteps):
                 paData[:, n, z] = spfp.hilbert(paData[:, n, z])
-        reImg2 = super().reconstruct(paData)
+        reImg2 = np.copy(super().reconstruct(paData))
         self.reImg = np.sqrt(reImg1 ** 2 + reImg2 ** 2)
         return self.reImg
 
