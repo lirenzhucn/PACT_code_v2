@@ -417,6 +417,9 @@ class Reconstruction2D:
         (self.idxAll, self.angularWeight, self.totalAngularWeight) =\
             find_index_map_and_angular_weight(nSteps, xImg, yImg, xReceive,
                                               yReceive, delayIdx, vm, fs)
+        # convert array order
+        self.idxAll = np.ascontiguousarray(self.idxAll)
+        self.angularWeight = np.ascontiguousarray(self.angularWeight)
         # reconstructed image buffer
         self.reImg = np.zeros((nPixely, nPixelx, zSteps), order='F')
         # store parameters

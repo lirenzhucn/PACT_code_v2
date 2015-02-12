@@ -1,19 +1,46 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-//#include <omp.h>
+#include <stdlib.h>
+#include <omp.h>
+//#include <sys/time.h>
+#include <unistd.h>
 
 // implementation function
 void recon_loop_imp(const double *pa_data, const uint64_t *idxAll,
     const double *angularWeight, int nPixelx, int nPixely,
     int nSteps, int nTimeSamples, double *pa_img) {
   int iStep, y, x, icount, pcount, iskip;
+  double paImgPixel;
+  //struct timeval start, end, dif;
+  int *iskips = (int *)malloc(sizeof(int) * nSteps);
 
+  //gettimeofday(&start, NULL);
+  for (iStep=0; iStep<nSteps; iStep++) {
+    iskips[iStep] = nTimeSamples * iStep - 1;
+  }
+  pcount = 0;
+  icount = 0;
+  iskip = 0;
+  for (x=0; x<nPixelx; x++) {
+    for (y=0; y<nPixely; y++) {
+      paImgPixel = 0.0;
+      for (iStep=0; iStep<nSteps; iStep++) {
+        iskip = iskips[iStep];
+	paImgPixel +=
+	  pa_data[(int)idxAll[icount]+iskip] *
+	  angularWeight[icount];
+        icount++;
+      }
+      pa_img[pcount]= paImgPixel;
+      pcount++;
+    }
+  }
+  /*
   icount = 0;
   for (iStep=0; iStep<nSteps; iStep++) {
     pcount = 0;
     iskip = nTimeSamples * iStep - 1;
-    /* iskip = 1301 * iStep - 1; */
     for (y=0; y<nPixely; y++) {
       for (x=0; x<nPixelx; x++) {
 	pa_img[pcount++] +=
@@ -23,6 +50,12 @@ void recon_loop_imp(const double *pa_data, const uint64_t *idxAll,
       }
     }
   }
+  */
+  //gettimeofday(&end, NULL);
+  //timersub(&end, &start, &dif);
+  //printf("Thread time %ld.%06ld s.\n",
+      //(long int)dif.tv_sec, (long int)dif.tv_usec);
+  free(iskips);
 }
 
 void backproject_loop_imp(const double *paData, const uint64_t *idxAll,
@@ -30,12 +63,10 @@ void backproject_loop_imp(const double *paData, const uint64_t *idxAll,
     int nPixelx, int nPixely, int zSteps, int nSteps, int nSamples,
     double *paImg) {
   int z, ind;
-  const double *paDataPointer;
-  double *paImgPointer;
-//#pragma omp parallel for private(paDataPointer, paImgPointer)
+//#pragma omp parallel for
   for (z = 0; z < zSteps; z++) {
-    paDataPointer = paData + z*nSamples*nSteps;
-    paImgPointer = paImg + z*nPixely*nPixelx;
+    const double *paDataPointer = paData + z*nSamples*nSteps;
+    double *paImgPointer = paImg + z*nPixely*nPixelx;
     recon_loop_imp(paDataPointer, idxAll, angularWeight,
         nPixelx, nPixely, nSteps, nSamples, paImgPointer);
     for (ind = 0; ind < nPixely*nPixelx; ind++) {
