@@ -400,8 +400,8 @@ class Reconstruction2D:
                   - nPixely / 2) * ySize / nPixely + yCenter
         xImg = np.dot(np.ones((nPixely, 1)), xRange.reshape((1, nPixelx)))
         yImg = np.dot(yRange.reshape((nPixely, 1)), np.ones((1, nPixelx)))
-        xImg = np.copy(xImg, order='F')
-        yImg = np.copy(yImg, order='F')
+        # xImg = np.copy(xImg, order='F')
+        # yImg = np.copy(yImg, order='F')
         # receiver position
         detectorAngle = np.arange(0, nSteps, 1, dtype=np.double) *\
             anglePerStep + iniAngle/180.0*np.pi
@@ -417,9 +417,6 @@ class Reconstruction2D:
         (self.idxAll, self.angularWeight, self.totalAngularWeight) =\
             find_index_map_and_angular_weight(nSteps, xImg, yImg, xReceive,
                                               yReceive, delayIdx, vm, fs)
-        # convert array order
-        self.idxAll = np.ascontiguousarray(self.idxAll)
-        self.angularWeight = np.ascontiguousarray(self.angularWeight)
         # reconstructed image buffer
         self.reImg = np.zeros((nPixely, nPixelx, zSteps), order='F')
         # store parameters

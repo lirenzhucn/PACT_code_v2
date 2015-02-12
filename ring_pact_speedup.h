@@ -1,7 +1,6 @@
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <omp.h>
 //#include <sys/time.h>
 #include <unistd.h>
@@ -13,7 +12,7 @@ void recon_loop_imp(const double *pa_data, const uint64_t *idxAll,
   int iStep, y, x, icount, pcount, iskip;
   double paImgPixel;
   //struct timeval start, end, dif;
-  int *iskips = (int *)malloc(sizeof(int) * nSteps);
+  int iskips[nSteps];
 
   //gettimeofday(&start, NULL);
   for (iStep=0; iStep<nSteps; iStep++) {
@@ -21,7 +20,6 @@ void recon_loop_imp(const double *pa_data, const uint64_t *idxAll,
   }
   pcount = 0;
   icount = 0;
-  iskip = 0;
   for (x=0; x<nPixelx; x++) {
     for (y=0; y<nPixely; y++) {
       paImgPixel = 0.0;
@@ -55,7 +53,6 @@ void recon_loop_imp(const double *pa_data, const uint64_t *idxAll,
   //timersub(&end, &start, &dif);
   //printf("Thread time %ld.%06ld s.\n",
       //(long int)dif.tv_sec, (long int)dif.tv_usec);
-  free(iskips);
 }
 
 void backproject_loop_imp(const double *paData, const uint64_t *idxAll,
@@ -63,7 +60,7 @@ void backproject_loop_imp(const double *paData, const uint64_t *idxAll,
     int nPixelx, int nPixely, int zSteps, int nSteps, int nSamples,
     double *paImg) {
   int z, ind;
-//#pragma omp parallel for
+#pragma omp parallel for
   for (z = 0; z < zSteps; z++) {
     const double *paDataPointer = paData + z*nSamples*nSteps;
     double *paImgPointer = paImg + z*nPixely*nPixelx;
@@ -116,9 +113,12 @@ def find_index_map_and_angular_weight\
       rr0 = sqrt(dx*dx + dy*dy);
       cosAlpha = fabs((-xReceive[n]*dx-yReceive[n]*dy)/r0/rr0);
       cosAlpha = cosAlpha<0.999 ? cosAlpha : 0.999;
-      angularWeight[n*nSize2D+i] = cosAlpha / (rr0 * rr0);
-      totalAngularWeight[i] += angularWeight[n*nSize2D+i];
-      idxAll[n*nSize2D+i] = (uint64_t)round((rr0/vm - delayIdx[n]) * fs);
+      //angularWeight[n*nSize2D+i] = cosAlpha / (rr0 * rr0);
+      //totalAngularWeight[i] += angularWeight[n*nSize2D+i];
+      //idxAll[n*nSize2D+i] = (uint64_t)round((rr0/vm - delayIdx[n]) * fs);
+      angularWeight[n + i*nSteps] = cosAlpha / (rr0 * rr0);
+      totalAngularWeight[i] += angularWeight[n + i*nSteps];
+      idxAll[n + i*nSteps] = (uint64_t)round((rr0/vm - delayIdx[n]) * fs);
     }
   }
 }

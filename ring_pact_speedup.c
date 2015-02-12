@@ -201,8 +201,10 @@ static PyObject* find_index_map_and_angular_weight(PyObject* self, PyObject* arg
   dim_3d[2] = nSteps;
   dim_2d[0] = PyArray_SHAPE(p_xImg)[0];
   dim_2d[1] = PyArray_SHAPE(p_xImg)[1];
-  p_idxAll = PyArray_ZEROS(3, dim_3d, NPY_UINT64, 1);
-  p_angularWeight = PyArray_ZEROS(3, dim_3d, NPY_DOUBLE, 1);
+  /*p_idxAll = PyArray_ZEROS(3, dim_3d, NPY_UINT64, 1);*/
+  /*p_angularWeight = PyArray_ZEROS(3, dim_3d, NPY_DOUBLE, 1);*/
+  p_idxAll = PyArray_ZEROS(3, dim_3d, NPY_UINT64, 0);
+  p_angularWeight = PyArray_ZEROS(3, dim_3d, NPY_DOUBLE, 0);
   p_totalAngularWeight = PyArray_ZEROS(2, dim_2d, NPY_DOUBLE, 1);
   idxAll = (npy_uint64 *)PyArray_DATA(p_idxAll);
   angularWeight = (npy_double *)PyArray_DATA(p_angularWeight);
