@@ -94,10 +94,8 @@ def makeOutputFileName(pattern, params):
             valString = '%.3f' % (params[key],)
         elif key == 'spacing':
             valString = '%.3f' % (params[key],)
-        elif key == 'method':
-            valString = '%s' % (params[key],)
         else:
-            valString = '%.1f' % (params[key],)
+            valString = '%s' % (params[key],)
         filename = filename.replace(k, valString)
     return filename
 
