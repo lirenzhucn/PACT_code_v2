@@ -13,8 +13,6 @@ from os.path import expanduser, normpath, join
 from os import listdir, rename
 import sys
 
-# from unpack_speedup import daq_loop, generateChanMap
-# from recon_loop import recon_loop, find_index_map_and_angular_weight
 from ring_pact_speedup import daq_loop, generateChanMap
 from ring_pact_speedup import recon_loop, find_index_map_and_angular_weight
 from ring_pact_speedup import backproject_loop
@@ -361,7 +359,7 @@ class ReconUtility:
         numIndicator = int(float(current)/total * TOTAL_INDICATOR_NUM)
         msg = '\r{:>3}% [{:<50}]'.format(progress, CHAR_INDICATOR*numIndicator)
         if timeRemain is not None:
-            msg = msg + 'remain {:.2f} mins'.format(timeRemain)
+            msg = msg + '\t {:.2f} mins remaining'.format(timeRemain)
         sys.stdout.write(msg)
         sys.stdout.flush()
         if current == total:
@@ -570,7 +568,6 @@ class Reconstruction3D:
     def __init__(self, opts):
         assert(isinstance(opts, Options))
         self.opts = opts
-        self.initialized = False
 
     @staticmethod
     def rearrangePAData(paData):
@@ -612,6 +609,8 @@ class Reconstruction3D:
         xSize = self.opts.xSize
         ySize = self.opts.ySize
         zSize = self.opts.zSize
+        if zSize == 'full':
+            zSize = self.opts.zPerStep * paData.shape[2]
         spacing = self.opts.spacing
         zSpacing = self.opts.zSpacing
         xCenter = self.opts.xCenter
@@ -619,6 +618,8 @@ class Reconstruction3D:
         fs = self.opts.fs
         R = self.opts.R
         lenR = self.opts.lenR
+        elementHeight = self.opts.elementHeight
+        # calculate delay indices
         delayIdx = ReconUtility.findDelayIdx(paData[:, :, 0], fs)
         delayIdx = delayIdx.astype(np.float32)
         print('Re-arranging raw RF data according to firing squence')
@@ -688,9 +689,9 @@ class Reconstruction3D:
                 cuda.memcpy_htod(d_paDataLine, paData[:, ni, zi])
                 bpk(d_reImg, d_paDataLine, d_cosAlpha, d_tempc,
                     d_zRange, zReceive[zi], np.float32(lenR),
-                    np.float32(vm), delayIdx[ti], np.float32(fs),
-                    np.uint32(ti), np.uint32(nSteps * numGroup),
-                    np.uint32(nSamples),
+                    np.float32(elementHeight), np.float32(vm),
+                    delayIdx[ti], np.float32(fs), np.uint32(ti),
+                    np.uint32(nSteps * numGroup), np.uint32(nSamples),
                     grid=(nPixelx, nPixely), block=(nPixelz, 1, 1))
             et = time()
             time_remaining = ((zSteps - zi - 1) * (et - st) / (zi + 1)) / 60.0
