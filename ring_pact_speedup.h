@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <omp.h>
 //#include <sys/time.h>
-#include <unistd.h>
+//#include <unistd.h>
 
 // implementation function
 void recon_loop_imp(const double *pa_data, const uint64_t *idxAll,
@@ -12,7 +12,8 @@ void recon_loop_imp(const double *pa_data, const uint64_t *idxAll,
   int iStep, y, x, icount, pcount, iskip;
   double paImgPixel;
   //struct timeval start, end, dif;
-  int iskips[nSteps];
+  //int iskips[nSteps];
+  int iskips[512];
 
   //gettimeofday(&start, NULL);
   for (iStep=0; iStep<nSteps; iStep++) {
@@ -105,6 +106,7 @@ def find_index_map_and_angular_weight\
 
   int n, i;
   double r0, rr0, dx, dy, cosAlpha;
+#pragma omp parallel for private(r0, rr0, dx, dy, cosAlpha)
   for (n=0; n<nSteps; n++) {
     r0 = sqrt(xReceive[n]*xReceive[n] + yReceive[n]*yReceive[n]);
     for (i=0; i<nSize2D; i++) {

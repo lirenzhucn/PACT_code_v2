@@ -550,8 +550,11 @@ class Reconstruction2DUnipolarMultiview(Reconstruction2D):
 
 
 from io import StringIO
-import pycuda.driver as cuda
-from pycuda.compiler import SourceModule
+try:
+    import pycuda.driver as cuda
+    from pycuda.compiler import SourceModule
+except:
+    NO_CUDA = True
 from time import time
 import os.path
 
