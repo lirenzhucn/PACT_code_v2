@@ -28,18 +28,19 @@ __global__ void calculate_cos_alpha_and_tempc
 __global__ void backprojection_kernel_fast
 (float *img, float *paDataLine,
  float *cosAlpha_, float *tempc_, float *zRange,
- float zReceive, float lenR, float vm, float delayIdx, float fs,
+ float zReceive, float lenR, float elementHeight,
+ float vm, float delayIdx, float fs,
  unsigned int ni, unsigned int nSteps, unsigned int lineLength) {
   size_t xi = blockIdx.x;
   size_t yi = blockIdx.y;
   size_t zi = threadIdx.x;
-  size_t imgIdx = zi + yi*blockDim.x + xi*blockDim.x*gridDim.y;
   size_t precompIdx = ni + yi*nSteps + xi*nSteps*gridDim.y;
   float dz = zRange[zi] - zReceive;
   float cosAlpha = cosAlpha_[precompIdx];
   float tempc = tempc_[precompIdx];
-  float rr0 = sqrt(tempc*tempc + dz*dz)*SIGN(tempc) + lenR/cosAlpha;
-  if (fabs(dz/tempc) < fabs(10.0/lenR/cosAlpha)) {
+  if (fabs(dz/tempc) < fabs(elementHeight*cosAlpha/2.0/lenR)) {
+    size_t imgIdx = zi + yi*blockDim.x + xi*blockDim.x*gridDim.y;
+    float rr0 = sqrt(tempc*tempc + dz*dz)*SIGN(tempc) + lenR/cosAlpha;
     float angleWeightB = tempc/sqrt(tempc*tempc+dz*dz)*cosAlpha/(rr0*rr0);
     size_t idx0 = lround((rr0/vm-delayIdx)*fs);
     if (idx0 < lineLength) {
