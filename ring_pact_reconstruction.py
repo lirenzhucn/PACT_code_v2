@@ -353,13 +353,15 @@ class ReconUtility:
         return delayIdx
 
     @staticmethod
-    def updateProgress(current, total):
+    def updateProgress(current, total, timeRemain=None):
         """update progress bar"""
         TOTAL_INDICATOR_NUM = 50
         CHAR_INDICATOR = '#'
         progress = int(float(current)/total * 100)
         numIndicator = int(float(current)/total * TOTAL_INDICATOR_NUM)
         msg = '\r{:>3}% [{:<50}]'.format(progress, CHAR_INDICATOR*numIndicator)
+        if timeRemain is not None:
+            msg = msg + 'remain {:.2f} mins'.format(timeRemain)
         sys.stdout.write(msg)
         sys.stdout.flush()
         if current == total:
@@ -549,5 +551,154 @@ class Reconstruction2DUnipolarMultiview(Reconstruction2D):
         return self.reImg
 
 
+from io import StringIO
+import pycuda.driver as cuda
+from pycuda.compiler import SourceModule
+from time import time
+import os.path
+
+
 class Reconstruction3D:
-    pass
+
+    SCRIPT_PATH = os.path.dirname(os.path.relpath(__file__))
+    PULSE_STR = ""
+    PULSE_FILE = os.path.join(SCRIPT_PATH, 'PULSE_ARRANGEMENTS.txt')
+    with open(PULSE_FILE) as fid:
+        PULSE_STR = fid.read()
+    KERNEL_CU_FILE = os.path.join(SCRIPT_PATH, 'reconstruct_kernel.cu')
+
+    def __init__(self, opts):
+        assert(isinstance(opts, Options))
+        self.opts = opts
+        self.initialized = False
+
+    @staticmethod
+    def rearrangePAData(paData):
+        """rearrange paData array according to 8 firing order
+        """
+        nSamples, nSteps, zSteps = paData.shape
+        assert nSteps == 512
+        # load pulse list from the pre-defined string
+        sio = StringIO(Reconstruction3D.PULSE_STR)
+        pulseList = np.loadtxt(sio, dtype=np.int)
+        # pulse list was created based on MATLAB's 1-starting index
+        # minus 1 to correct for the 0-starting index in Python
+        pulseList = pulseList - 1
+        numGroup = pulseList.shape[0]
+        paDataE = np.zeros((nSamples, nSteps / numGroup, zSteps * numGroup),
+                           dtype=np.float32, order='F')
+        for zi in range(zSteps):
+            for fi in range(numGroup):
+                paDataE[:, :, zi * numGroup + fi] =\
+                    paData[:, pulseList[fi, :], zi]
+        return paDataE, pulseList, numGroup
+
+    def reconstruct(self, paData):
+        # preprocess
+        if self.opts.wiener:
+            print('Wiener filtering raw data...')
+            paData = subfunc_wiener(paData)
+        if self.opts.exact:
+            print('Filtering raw data for exact reconstruction...')
+            paData = subfunc_exact(paData)
+        # initialize CUDA
+        cuda.init()
+        dev = cuda.Device(0)
+        ctx = dev.make_context()
+        # parameters
+        iniAngle = self.opts.iniAngle
+        zPerStep = self.opts.zPerStep
+        vm = self.opts.vm
+        xSize = self.opts.xSize
+        ySize = self.opts.ySize
+        zSize = self.opts.zSize
+        spacing = self.opts.spacing
+        zSpacing = self.opts.zSpacing
+        xCenter = self.opts.xCenter
+        yCenter = self.opts.yCenter
+        fs = self.opts.fs
+        R = self.opts.R
+        lenR = self.opts.lenR
+        delayIdx = ReconUtility.findDelayIdx(paData[:, :, 0], fs)
+        delayIdx = delayIdx.astype(np.float32)
+        print('Re-arranging raw RF data according to firing squence')
+        paData = paData.astype(np.float32)
+        paData, pulseList, numGroup = self.rearrangePAData(paData)
+        nSamples, nSteps, zSteps = paData.shape
+        # notice the z step size is divided by firing group count
+        zPerStep = zPerStep / numGroup
+        zCenter = zPerStep * zSteps / 2
+        # notice nSteps is now 64!!
+        anglePerStep = 2 * np.pi / nSteps / numGroup
+        nPixelx = int(round(xSize / spacing))
+        nPixely = int(round(ySize / spacing))
+        nPixelz = int(round(zSize / zSpacing))
+        # note range is 0-start indices
+        xRange = (np.arange(1, nPixelx + 1, 1, dtype=np.float32)
+                  - nPixelx / 2) * xSize / nPixelx + xCenter
+        yRange = (np.arange(nPixely, 0, -1, dtype=np.float32)
+                  - nPixely / 2) * ySize / nPixely + yCenter
+        zRange = (np.arange(1, nPixelz + 1, 1, dtype=np.float32)
+                  - nPixelz / 2) * zSize / nPixelz + zCenter
+        # receiver position
+        angleStep1 = iniAngle / 180.0 * np.pi
+        detectorAngle = np.arange(0, nSteps * numGroup, 1, dtype=np.float32)\
+            * anglePerStep + angleStep1
+        xReceive = np.cos(detectorAngle) * R
+        yReceive = np.sin(detectorAngle) * R
+        zReceive = np.arange(0, zSteps, dtype=np.float32) * zPerStep
+        # create buffer on GPU for reconstructed image
+        self.reImg = np.zeros((nPixely, nPixelx, nPixelz),
+                              order='C', dtype=np.float32)
+        d_reImg = cuda.mem_alloc(self.reImg.nbytes)
+        cuda.memcpy_htod(d_reImg, self.reImg)
+        d_cosAlpha = cuda.mem_alloc(nPixely * nPixelx * nSteps * numGroup * 4)
+        d_tempc = cuda.mem_alloc(nPixely * nPixelx * nSteps * numGroup * 4)
+        d_paDataLine = cuda.mem_alloc(nSamples * 4)
+        # back projection loop
+        print('Reconstruction starting. Keep patient.')
+        d_xRange = cuda.mem_alloc(xRange.nbytes)
+        cuda.memcpy_htod(d_xRange, xRange)
+        d_yRange = cuda.mem_alloc(yRange.nbytes)
+        cuda.memcpy_htod(d_yRange, yRange)
+        d_zRange = cuda.mem_alloc(zRange.nbytes)
+        cuda.memcpy_htod(d_zRange, zRange)
+        d_xReceive = cuda.mem_alloc(xReceive.nbytes)
+        cuda.memcpy_htod(d_xReceive, xReceive)
+        d_yReceive = cuda.mem_alloc(yReceive.nbytes)
+        cuda.memcpy_htod(d_yReceive, yReceive)
+        # get module right before execution of function
+        MOD = SourceModule(open(self.KERNEL_CU_FILE, 'r').read())
+        precomp = MOD.get_function('calculate_cos_alpha_and_tempc')
+        bpk = MOD.get_function('backprojection_kernel_fast')
+        # compute cosAlpha and tempc
+        st_all = time()
+        precomp(d_cosAlpha, d_tempc, d_xRange, d_yRange,
+                d_xReceive, d_yReceive, np.float32(lenR),
+                grid=(nPixelx, nPixely), block=(nSteps * numGroup, 1, 1))
+        ctx.synchronize()
+        print('Done pre-computing cosAlpha and tempc.')
+        st = time()
+        for zi in range(zSteps):
+            # find out the index of fire at each virtual plane
+            fi = zi % numGroup
+            for ni in range(nSteps):
+                # transducer index
+                ti = pulseList[fi, ni]
+                cuda.memcpy_htod(d_paDataLine, paData[:, ni, zi])
+                bpk(d_reImg, d_paDataLine, d_cosAlpha, d_tempc,
+                    d_zRange, zReceive[zi], np.float32(lenR),
+                    np.float32(vm), delayIdx[ti], np.float32(fs),
+                    np.uint32(ti), np.uint32(nSteps * numGroup),
+                    np.uint32(nSamples),
+                    grid=(nPixelx, nPixely), block=(nPixelz, 1, 1))
+            et = time()
+            time_remaining = ((zSteps - zi - 1) * (et - st) / (zi + 1)) / 60.0
+            ReconUtility.updateProgress(zi + 1, zSteps, time_remaining)
+        cuda.memcpy_dtoh(self.reImg, d_reImg)
+        et_all = time()
+        totalTime = (et_all - st_all) / 60.0
+        print('Total time elapsed: {:.2f} mins'.format(totalTime))
+        ctx.pop()
+        del ctx
+        return self.reImg

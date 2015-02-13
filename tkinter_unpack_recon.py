@@ -7,6 +7,7 @@ from ring_pact_reconstruction import Unpack, UnpackScan
 from ring_pact_reconstruction import Reconstruction2D
 from ring_pact_reconstruction import Reconstruction2DUnipolarHilbert
 from ring_pact_reconstruction import Reconstruction2DUnipolarMultiview
+from ring_pact_reconstruction import Reconstruction3D
 import numpy as np
 from collections import OrderedDict
 
@@ -137,6 +138,11 @@ def reconstruct_workhorse(input_file, output_file, opts, timeit):
         recon = Reconstruction2DUnipolarHilbert(opts)
     elif opts.method == 'unipolar-multiview':
         recon = Reconstruction2DUnipolarMultiview(opts)
+    elif opts.method == 'bipolar-3d':
+        recon = Reconstruction3D(opts)
+    else:
+        print('method {:} not supported'.format(opts.method))
+        return
     (basename, ext) = os.path.splitext(input_file)
     in_format = ext[1:]
     # read out data
