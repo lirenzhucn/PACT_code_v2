@@ -5,8 +5,12 @@
 //#include <sys/time.h>
 //#include <unistd.h>
 
+double round(double d) {
+  return (d>0.0 ? floor(d+0.5) : floor(d-0.5));
+}
+
 // implementation function
-void recon_loop_imp(const double *pa_data, const uint64_t *idxAll,
+void recon_loop_imp(const double *pa_data, const double *idxAll,
     const double *angularWeight, int nPixelx, int nPixely,
     int nSteps, int nTimeSamples, double *pa_img) {
   int iStep, y, x, icount, pcount, iskip;
@@ -27,7 +31,7 @@ void recon_loop_imp(const double *pa_data, const uint64_t *idxAll,
       for (iStep=0; iStep<nSteps; iStep++) {
         iskip = iskips[iStep];
 	paImgPixel +=
-	  pa_data[(int)idxAll[icount]+iskip] *
+	  pa_data[(int)round(idxAll[icount])+iskip] *
 	  angularWeight[icount];
         icount++;
       }
@@ -35,28 +39,13 @@ void recon_loop_imp(const double *pa_data, const uint64_t *idxAll,
       pcount++;
     }
   }
-  /*
-  icount = 0;
-  for (iStep=0; iStep<nSteps; iStep++) {
-    pcount = 0;
-    iskip = nTimeSamples * iStep - 1;
-    for (y=0; y<nPixely; y++) {
-      for (x=0; x<nPixelx; x++) {
-	pa_img[pcount++] +=
-	  pa_data[(int)idxAll[icount]+iskip] *
-	  angularWeight[icount];
-	icount++;
-      }
-    }
-  }
-  */
   //gettimeofday(&end, NULL);
   //timersub(&end, &start, &dif);
   //printf("Thread time %ld.%06ld s.\n",
       //(long int)dif.tv_sec, (long int)dif.tv_usec);
 }
 
-void backproject_loop_imp(const double *paData, const uint64_t *idxAll,
+void backproject_loop_imp(const double *paData, const double *idxAll,
     const double *angularWeight, const double *totalAngularWeight,
     int nPixelx, int nPixely, int zSteps, int nSteps, int nSamples,
     double *paImg) {
@@ -73,37 +62,11 @@ void backproject_loop_imp(const double *paData, const uint64_t *idxAll,
   }
 }
 
-double round(double d) {
-  return (d>0.0 ? floor(d+0.5) : floor(d-0.5));
-}
-
 void find_index_map_and_angular_weight_imp
 (const int nSteps, const double *xImg, const double *yImg,
  const double *xReceive, const double *yReceive, const double *delayIdx,
  const double vm, const double fs, const long nSize2D,
- uint64_t *idxAll, double *angularWeight, double *totalAngularWeight) {
-  /* Reference python codes
-def find_index_map_and_angular_weight\
-    (nSteps, xImg, yImg, xReceive, yReceive, delayIdx, vm, fs):
-    totalAngularWeight = np.zeros(xImg.shape, order='F')
-    idxAll = np.zeros((xImg.shape[0], xImg.shape[1], nSteps),\
-                      dtype=np.uint, order='F')
-    angularWeight = np.zeros((xImg.shape[0], xImg.shape[1], nSteps),\
-                             order='F')
-    for n in range(nSteps):
-        r0 = np.sqrt(np.square(xReceive[n]) + np.square(yReceive[n]))
-        dx = xImg - xReceive[n]
-        dy = yImg - yReceive[n]
-        rr0 = np.sqrt(np.square(dx) + np.square(dy))
-        cosAlpha = np.abs((-xReceive[n]*dx-yReceive[n]*dy)/r0/rr0)
-        cosAlpha = np.minimum(cosAlpha, 0.999)
-        angularWeight[:,:,n] = cosAlpha/np.square(rr0)
-        totalAngularWeight = totalAngularWeight + angularWeight[:,:,n]
-        idx = np.around((rr0/vm - delayIdx[n]) * fs)
-        idxAll[:,:,n] = idx
-    return (idxAll, angularWeight, totalAngularWeight)
-  */
-
+ double *idxAll, double *angularWeight, double *totalAngularWeight) {
   int n, i;
   double r0, rr0, dx, dy, cosAlpha;
 #pragma omp parallel for private(r0, rr0, dx, dy, cosAlpha)
@@ -115,12 +78,10 @@ def find_index_map_and_angular_weight\
       rr0 = sqrt(dx*dx + dy*dy);
       cosAlpha = fabs((-xReceive[n]*dx-yReceive[n]*dy)/r0/rr0);
       cosAlpha = cosAlpha<0.999 ? cosAlpha : 0.999;
-      //angularWeight[n*nSize2D+i] = cosAlpha / (rr0 * rr0);
-      //totalAngularWeight[i] += angularWeight[n*nSize2D+i];
-      //idxAll[n*nSize2D+i] = (uint64_t)round((rr0/vm - delayIdx[n]) * fs);
       angularWeight[n + i*nSteps] = cosAlpha / (rr0 * rr0);
       totalAngularWeight[i] += angularWeight[n + i*nSteps];
-      idxAll[n + i*nSteps] = (uint64_t)round((rr0/vm - delayIdx[n]) * fs);
+      //idxAll[n + i*nSteps] = (uint64_t)round((rr0/vm - delayIdx[n]) * fs);
+      idxAll[n + i*nSteps] = (rr0/vm - delayIdx[n]) * fs;
     }
   }
 }

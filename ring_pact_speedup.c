@@ -1,5 +1,7 @@
 #include "ring_pact_speedup.h"
 
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
+
 #include <Python.h>
 #include <numpy/arrayobject.h>
 #include <stdio.h>
@@ -22,8 +24,7 @@ static PyObject* recon_loop(PyObject* self, PyObject* args) {
   npy_intp dim_pa_img[2];
 
   int paDataValid, idxAllValid, angularWeightValid;
-  npy_double *pa_data, *angularWeight;
-  npy_uint64 *idxAll;
+  npy_double *pa_data, *angularWeight, *idxAll;
   npy_double *pa_img;
 
   // extract argument tuple
@@ -38,7 +39,7 @@ static PyObject* recon_loop(PyObject* self, PyObject* args) {
   // extract and validate variables
   paDataValid = (PyArray_ISFLOAT(p_pa_data)) &&
     (PyArray_CHKFLAGS(p_pa_data, NPY_ARRAY_FARRAY));
-  idxAllValid = (PyArray_ISUNSIGNED(p_idxAll)) &&
+  idxAllValid = (PyArray_ISFLOAT(p_idxAll)) &&
     (PyArray_CHKFLAGS(p_idxAll, NPY_ARRAY_CARRAY));
   angularWeightValid = (PyArray_ISFLOAT(p_angularWeight)) &&
     (PyArray_CHKFLAGS(p_angularWeight, NPY_ARRAY_CARRAY));
@@ -50,9 +51,9 @@ static PyObject* recon_loop(PyObject* self, PyObject* args) {
   dim_pa_img[1] = nPixelx;
   p_pa_img = PyArray_ZEROS(2, dim_pa_img, NPY_DOUBLE, 1);
   pa_data = (npy_double *)PyArray_DATA(p_pa_data);
-  idxAll = (npy_uint64 *)PyArray_DATA(p_idxAll);
+  idxAll = (npy_double *)PyArray_DATA(p_idxAll);
   angularWeight = (npy_double *)PyArray_DATA(p_angularWeight);
-  pa_img = (npy_double *)PyArray_DATA(p_pa_img);
+  pa_img = (npy_double *)PyArray_DATA((PyArrayObject *)p_pa_img);
 
   // call implementation function
   recon_loop_imp(pa_data, idxAll, angularWeight,
@@ -82,8 +83,7 @@ static PyObject *backproject_loop(PyObject *self, PyObject *args) {
   PyArrayObject *p_paData, *p_idxAll, *p_angularWeight, *p_totalAngularWeight;
   PyObject *p_paImg;
   // input/output data pointers
-  npy_double *paData, *angularWeight, *totalAngularWeight;
-  npy_uint64 *idxAll;
+  npy_double *paData, *angularWeight, *totalAngularWeight, *idxAll;
   npy_double *paImg;
   // size variables to be extracted from arrays
   int nPixelx, nPixely, zSteps, nSteps, nSamples;
@@ -111,7 +111,7 @@ static PyObject *backproject_loop(PyObject *self, PyObject *args) {
   nSteps = PyArray_SHAPE(p_idxAll)[2];
   paDataValid = (PyArray_ISFLOAT(p_paData)) &&
     (PyArray_CHKFLAGS(p_paData, NPY_ARRAY_FARRAY));
-  idxAllValid = (PyArray_ISUNSIGNED(p_idxAll)) &&
+  idxAllValid = (PyArray_ISFLOAT(p_idxAll)) &&
     (PyArray_CHKFLAGS(p_idxAll, NPY_ARRAY_CARRAY));
   angularWeightValid = (PyArray_ISFLOAT(p_angularWeight)) &&
     (PyArray_CHKFLAGS(p_angularWeight, NPY_ARRAY_CARRAY));
@@ -123,7 +123,7 @@ static PyObject *backproject_loop(PyObject *self, PyObject *args) {
     return Py_None;
   }
   paData = (npy_double *)PyArray_DATA(p_paData);
-  idxAll = (npy_uint64 *)PyArray_DATA(p_idxAll);
+  idxAll = (npy_double *)PyArray_DATA(p_idxAll);
   angularWeight = (npy_double *)PyArray_DATA(p_angularWeight);
   totalAngularWeight = (npy_double *)PyArray_DATA(p_totalAngularWeight);
   // create paImg object
@@ -131,7 +131,7 @@ static PyObject *backproject_loop(PyObject *self, PyObject *args) {
   dim_paImg[1] = nPixelx;
   dim_paImg[2] = zSteps;
   p_paImg = PyArray_ZEROS(3, dim_paImg, NPY_DOUBLE, 1);
-  paImg = (npy_double *)PyArray_DATA(p_paImg);
+  paImg = (npy_double *)PyArray_DATA((PyArrayObject *)p_paImg);
 
   // call implementation
   backproject_loop_imp(paData, idxAll, angularWeight, totalAngularWeight,
@@ -161,8 +161,7 @@ static PyObject* find_index_map_and_angular_weight(PyObject* self, PyObject* arg
   PyObject *p_idxAll, *p_angularWeight, *p_totalAngularWeight;
   int nSteps;
   npy_double vm, fs;
-  npy_double *xImg, *yImg, *xReceive, *yReceive, *delayIdx;
-  npy_uint64 *idxAll;
+  npy_double *xImg, *yImg, *xReceive, *yReceive, *delayIdx, *idxAll;
   npy_double *angularWeight, *totalAngularWeight;
 
   PyObject *returnTuple = PyTuple_New(3);
@@ -197,14 +196,13 @@ static PyObject* find_index_map_and_angular_weight(PyObject* self, PyObject* arg
   dim_3d[2] = nSteps;
   dim_2d[0] = PyArray_SHAPE(p_xImg)[0];
   dim_2d[1] = PyArray_SHAPE(p_xImg)[1];
-  /*p_idxAll = PyArray_ZEROS(3, dim_3d, NPY_UINT64, 1);*/
-  /*p_angularWeight = PyArray_ZEROS(3, dim_3d, NPY_DOUBLE, 1);*/
-  p_idxAll = PyArray_ZEROS(3, dim_3d, NPY_UINT64, 0);
+  /*p_idxAll = PyArray_ZEROS(3, dim_3d, NPY_UINT64, 0);*/
+  p_idxAll = PyArray_ZEROS(3, dim_3d, NPY_DOUBLE, 0);
   p_angularWeight = PyArray_ZEROS(3, dim_3d, NPY_DOUBLE, 0);
   p_totalAngularWeight = PyArray_ZEROS(2, dim_2d, NPY_DOUBLE, 1);
-  idxAll = (npy_uint64 *)PyArray_DATA(p_idxAll);
-  angularWeight = (npy_double *)PyArray_DATA(p_angularWeight);
-  totalAngularWeight = (npy_double *)PyArray_DATA(p_totalAngularWeight);
+  idxAll = (npy_double *)PyArray_DATA((PyArrayObject *)p_idxAll);
+  angularWeight = (npy_double *)PyArray_DATA((PyArrayObject *)p_angularWeight);
+  totalAngularWeight = (npy_double *)PyArray_DATA((PyArrayObject *)p_totalAngularWeight);
 
   // Call the implementation
   find_index_map_and_angular_weight_imp
@@ -280,8 +278,8 @@ static PyObject *daq_loop(PyObject *self, PyObject *args) {
   dim_chndata_all[1] = NumElements*numExperiments;
   p_chndata = PyArray_ZEROS(2, dim_chndata, NPY_DOUBLE, 1);
   p_chndata_all = PyArray_ZEROS(2, dim_chndata_all, NPY_DOUBLE, 1);
-  chndata = (npy_double *)PyArray_DATA(p_chndata);
-  chndata_all = (npy_double *)PyArray_DATA(p_chndata_all);
+  chndata = (npy_double *)PyArray_DATA((PyArrayObject *)p_chndata);
+  chndata_all = (npy_double *)PyArray_DATA((PyArrayObject *)p_chndata_all);
 
   // call the implementation
   daq_loop_imp(packData1, packData2, chanMap, numExperiments, packSize,
@@ -307,7 +305,7 @@ static PyObject *generateChanMap(PyObject *self, PyObject *args) {
   // extract argument tuple
   if (!PyArg_ParseTuple(args, "i", &numElements)) { return Py_None; }
   p_chanMap = PyArray_ZEROS(1, &numElements, NPY_UINT32, 1);
-  chanMap = (npy_uint32 *)PyArray_DATA(p_chanMap);
+  chanMap = (npy_uint32 *)PyArray_DATA((PyArrayObject *)p_chanMap);
   // call the actual function
   generateChanMap_imp(numElements, chanMap);
   // return result
