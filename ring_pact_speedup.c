@@ -39,9 +39,9 @@ static PyObject* recon_loop(PyObject* self, PyObject* args) {
   paDataValid = (PyArray_ISFLOAT(p_pa_data)) &&
     (PyArray_CHKFLAGS(p_pa_data, NPY_ARRAY_FARRAY));
   idxAllValid = (PyArray_ISUNSIGNED(p_idxAll)) &&
-    (PyArray_CHKFLAGS(p_idxAll, NPY_ARRAY_FARRAY));
+    (PyArray_CHKFLAGS(p_idxAll, NPY_ARRAY_CARRAY));
   angularWeightValid = (PyArray_ISFLOAT(p_angularWeight)) &&
-    (PyArray_CHKFLAGS(p_angularWeight, NPY_ARRAY_FARRAY));
+    (PyArray_CHKFLAGS(p_angularWeight, NPY_ARRAY_CARRAY));
   if (!paDataValid || !idxAllValid || !angularWeightValid) {
     printf("%d, %d, %d\n", paDataValid, idxAllValid, angularWeightValid);
     goto fail;
@@ -111,10 +111,6 @@ static PyObject *backproject_loop(PyObject *self, PyObject *args) {
   nSteps = PyArray_SHAPE(p_idxAll)[2];
   paDataValid = (PyArray_ISFLOAT(p_paData)) &&
     (PyArray_CHKFLAGS(p_paData, NPY_ARRAY_FARRAY));
-  /*idxAllValid = (PyArray_ISUNSIGNED(p_idxAll)) &&*/
-    /*(PyArray_CHKFLAGS(p_idxAll, NPY_ARRAY_FARRAY));*/
-  /*angularWeightValid = (PyArray_ISFLOAT(p_angularWeight)) &&*/
-    /*(PyArray_CHKFLAGS(p_angularWeight, NPY_ARRAY_FARRAY));*/
   idxAllValid = (PyArray_ISUNSIGNED(p_idxAll)) &&
     (PyArray_CHKFLAGS(p_idxAll, NPY_ARRAY_CARRAY));
   angularWeightValid = (PyArray_ISFLOAT(p_angularWeight)) &&
