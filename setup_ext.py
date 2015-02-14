@@ -12,7 +12,7 @@ class build_ext_openmp(build_ext):
         if compiler == 'msvc':
             for e in self.extensions:
                 e.extra_compile_args = ['/openmp']
-        elif compiler == 'gcc':
+        elif compiler == 'unix':
             for e in self.extensions:
                 e.extra_compile_args = ['-fopenmp']
                 e.extra_link_args = ['-lgomp']
