@@ -30,9 +30,21 @@ void recon_loop_imp(const double *pa_data, const double *idxAll,
       paImgPixel = 0.0;
       for (iStep=0; iStep<nSteps; iStep++) {
         iskip = iskips[iStep];
-	paImgPixel +=
-	  pa_data[(int)round(idxAll[icount])+iskip] *
-	  angularWeight[icount];
+        double x = idxAll[icount];
+        double x1 = floor(x);
+        double x2 = ceil(x);
+        double y;
+        if (x1 != x2) {
+          double y1 = pa_data[(int)x1+iskip];
+          double y2 = pa_data[(int)x2+iskip];
+          y = (y2-y1)*(x-x1) + y1;
+        } else {
+          y = pa_data[(int)x+iskip];
+        }
+        paImgPixel += y * angularWeight[icount];
+	//paImgPixel +=
+	  //pa_data[(int)round(idxAll[icount])+iskip] *
+	  //angularWeight[icount];
         icount++;
       }
       pa_img[pcount]= paImgPixel;
