@@ -470,6 +470,8 @@ class Reconstruction2D:
             print('Filtering raw data for exact reconstruction...')
             paData = subfunc_exact(paData)
         self.backprojection(paData)
+        # try to correct for mean value of the image
+        self.reImg = self.reImg - np.mean(self.reImg.flatten())
         return self.reImg
 
 
