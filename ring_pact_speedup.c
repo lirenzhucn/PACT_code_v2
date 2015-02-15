@@ -75,6 +75,7 @@ static PyObject* recon_loop(PyObject* self, PyObject* args) {
  *   idxAll: ndarray, ndim=3, nPixely*nPixelx*nSteps, dtype=uint64
  *   angularWeight: ndarray, ndim=3, nPixely*nPixelx*nSteps, dtype=double
  *   totalAngularWeight: ndarray, ndim=2, nPixely*nPixelx, dtype=double
+ *   linearInterpolation: bool, optional
  * output:
  *   paImg: ndarray, ndim=3, nPixely*nPixelx*zSteps, dtype=double
  */
@@ -82,6 +83,7 @@ static PyObject *backproject_loop(PyObject *self, PyObject *args) {
   // input/output arguments
   PyArrayObject *p_paData, *p_idxAll, *p_angularWeight, *p_totalAngularWeight;
   PyObject *p_paImg;
+  int linearInterpolation = 0;
   // input/output data pointers
   npy_double *paData, *angularWeight, *totalAngularWeight, *idxAll;
   npy_double *paImg;
@@ -93,11 +95,12 @@ static PyObject *backproject_loop(PyObject *self, PyObject *args) {
   npy_intp dim_paImg[3];
 
   // extract argument tuple
-  if (!PyArg_ParseTuple(args, "O!O!O!O!",
+  if (!PyArg_ParseTuple(args, "O!O!O!O!|p",
         &PyArray_Type, &p_paData,
         &PyArray_Type, &p_idxAll,
         &PyArray_Type, &p_angularWeight,
-        &PyArray_Type, &p_totalAngularWeight)) {
+        &PyArray_Type, &p_totalAngularWeight,
+        &linearInterpolation)) {
     printf("Error: Something wrong with input arguments.\n");
     return Py_None;
   }
@@ -135,7 +138,7 @@ static PyObject *backproject_loop(PyObject *self, PyObject *args) {
 
   // call implementation
   backproject_loop_imp(paData, idxAll, angularWeight, totalAngularWeight,
-      nPixelx, nPixely, zSteps, nSteps, nSamples, paImg);
+      nPixelx, nPixely, zSteps, nSteps, nSamples, linearInterpolation, paImg);
 
   return p_paImg;
 }

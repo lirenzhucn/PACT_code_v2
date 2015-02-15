@@ -3,23 +3,49 @@
 #include <stdio.h>
 #include <omp.h>
 //#include <sys/time.h>
-//#include <unistd.h>
 
 double round(double d) {
   return (d>0.0 ? floor(d+0.5) : floor(d-0.5));
 }
 
-// implementation function
+// implementation function for recon_loop
 void recon_loop_imp(const double *pa_data, const double *idxAll,
     const double *angularWeight, int nPixelx, int nPixely,
     int nSteps, int nTimeSamples, double *pa_img) {
   int iStep, y, x, icount, pcount, iskip;
   double paImgPixel;
-  //struct timeval start, end, dif;
-  //int iskips[nSteps];
   int iskips[512];
 
-  //gettimeofday(&start, NULL);
+  for (iStep=0; iStep<nSteps; iStep++) {
+    iskips[iStep] = nTimeSamples * iStep - 1;
+  }
+  pcount = 0;
+  icount = 0;
+  for (x=0; x<nPixelx; x++) {
+    for (y=0; y<nPixely; y++) {
+      paImgPixel = 0.0;
+      for (iStep=0; iStep<nSteps; iStep++) {
+        iskip = iskips[iStep];
+        paImgPixel +=
+          pa_data[(int)round(idxAll[icount])+iskip] *
+          angularWeight[icount];
+        icount++;
+      }
+      pa_img[pcount]= paImgPixel;
+      pcount++;
+    }
+  }
+}
+
+// implementation function
+void recon_loop_linear_interpolation
+(const double *pa_data, const double *idxAll,
+ const double *angularWeight, int nPixelx, int nPixely,
+ int nSteps, int nTimeSamples, double *pa_img) {
+  int iStep, y, x, icount, pcount, iskip;
+  double paImgPixel;
+  int iskips[512];
+
   for (iStep=0; iStep<nSteps; iStep++) {
     iskips[iStep] = nTimeSamples * iStep - 1;
   }
@@ -42,32 +68,32 @@ void recon_loop_imp(const double *pa_data, const double *idxAll,
           y = pa_data[(int)x+iskip];
         }
         paImgPixel += y * angularWeight[icount];
-	//paImgPixel +=
-	  //pa_data[(int)round(idxAll[icount])+iskip] *
-	  //angularWeight[icount];
         icount++;
       }
       pa_img[pcount]= paImgPixel;
       pcount++;
     }
   }
-  //gettimeofday(&end, NULL);
-  //timersub(&end, &start, &dif);
-  //printf("Thread time %ld.%06ld s.\n",
-      //(long int)dif.tv_sec, (long int)dif.tv_usec);
 }
 
 void backproject_loop_imp(const double *paData, const double *idxAll,
     const double *angularWeight, const double *totalAngularWeight,
     int nPixelx, int nPixely, int zSteps, int nSteps, int nSamples,
-    double *paImg) {
+    int linearInterpolation, double *paImg) {
   int z, ind;
 #pragma omp parallel for
   for (z = 0; z < zSteps; z++) {
     const double *paDataPointer = paData + z*nSamples*nSteps;
     double *paImgPointer = paImg + z*nPixely*nPixelx;
-    recon_loop_imp(paDataPointer, idxAll, angularWeight,
+    if (linearInterpolation) {
+      recon_loop_linear_interpolation
+        (paDataPointer, idxAll, angularWeight,
         nPixelx, nPixely, nSteps, nSamples, paImgPointer);
+    } else {
+      recon_loop_imp
+        (paDataPointer, idxAll, angularWeight,
+        nPixelx, nPixely, nSteps, nSamples, paImgPointer);
+    }
     for (ind = 0; ind < nPixely*nPixelx; ind++) {
       paImgPointer[ind] /= totalAngularWeight[ind];
     }
