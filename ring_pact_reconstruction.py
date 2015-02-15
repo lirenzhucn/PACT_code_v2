@@ -444,8 +444,15 @@ class Reconstruction2D:
                                       axis=0).reshape((1, paData.shape[1])))
             paData[99:nSamples, :, z] = paData[99:nSamples, :, z] - paDataDC
         # speedup implementation
-        self.reImg = backproject_loop(paData, self.idxAll, self.angularWeight,
-                                      self.totalAngularWeight)
+        if 'linearInterpolation' in self.opts.__dict__.keys():
+            self.reImg =\
+                backproject_loop(paData, self.idxAll, self.angularWeight,
+                                 self.totalAngularWeight,
+                                 self.opts.linearInterpolation)
+        else:
+            self.reImg =\
+                backproject_loop(paData, self.idxAll, self.angularWeight,
+                                 self.totalAngularWeight)
         """
         for z in range(zSteps):
             temp = np.copy(paData[:, :, z], order='F')
