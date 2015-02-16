@@ -171,7 +171,7 @@ def reconstruct_workhorse(input_file, output_file, opts, timeit):
         f['reImg'] = reImg
         f.close()
     elif out_format == 'tiff' or out_format == 'lsm':
-        print('converting into single...')
+        print('converting into int16...')
         reImg = normalizeAndConvert(reImg, 'int16')
         print('saving image data to ' + output_file)
         tifffile.imsave(output_file, reImg)

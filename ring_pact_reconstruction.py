@@ -477,8 +477,6 @@ class Reconstruction2D:
             print('Filtering raw data for exact reconstruction...')
             paData = subfunc_exact(paData)
         self.backprojection(paData)
-        # try to correct for mean value of the image
-        self.reImg = self.reImg - np.mean(self.reImg.flatten())
         return self.reImg
 
 
@@ -516,9 +514,9 @@ class Reconstruction2DUnipolarMultiview(Reconstruction2D):
             list(range(startInd+floor(self.nSteps/2),
                        endInd+floor(self.nSteps/2)))
         indRange = [ind if ind < 512 else ind-512 for ind in indRange]
-        idxAll = np.copy(self.idxAll[:, :, indRange], order='F')
+        idxAll = np.copy(self.idxAll[:, :, indRange], order='C')
         angularWeight = np.copy(self.angularWeight[:, :, indRange],
-                                order='F')
+                                order='C')
         temp = np.copy(paSlice[:, indRange], order='F')
         paImg = recon_loop(temp, idxAll, angularWeight,
                            self.nPixelx, self.nPixely, 2*self.sectorSize)
