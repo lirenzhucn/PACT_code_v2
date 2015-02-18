@@ -437,21 +437,21 @@
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="mBtnUnpack_2">
+        <widget class="QPushButton" name="mBtnReconstruct">
          <property name="text">
           <string>Reconstruct</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="mBtnUnpack_3">
+        <widget class="QPushButton" name="mBtnSave">
          <property name="text">
           <string>Save</string>
          </property>
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="mBtnUnpack_4">
+        <widget class="QPushButton" name="mBtnClose">
          <property name="text">
           <string>Close</string>
          </property>

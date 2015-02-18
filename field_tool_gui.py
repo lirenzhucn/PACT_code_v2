@@ -47,6 +47,12 @@ class OutLogger:
         pass
 
 
+class UnpackThread(QtCore.QThread):
+    """
+    Worker thread for unpack data
+    """
+    pass
+
 from ui_fieldToolDialog import Ui_FieldToolDialog
 
 
@@ -57,27 +63,51 @@ class MainDialog(QtGui.QDialog, Ui_FieldToolDialog):
         self.setupUi(self)
         self.configUi()
         self.setupCommunication()
+        self.unpackOpts = {}
+        self.reconOpts = {}
 
     def configUi(self):
         """
         Configure GUI components here
         """
-        pass
+        self.mEdLog.setWordWrapMode(QtGui.QTextOption.WrapAnywhere)
 
     def setupCommunication(self):
         """
         Configure GUI components and signals/slots
         """
-        pass
+        self.mBtnClearLog.clicked.connect(self.onClearLog)
+        self.mBtnChooseDataFolder.clicked.connect(self.onChooseDataFolder)
+        self.mBtnClose.clicked.connect(self.onClose)
 
     def setupLogger(self, logger):
         """
         Hook a OutLogger object with the dialog.
         The dialog will handle the OutLogger's only signal 'mysignal'
         """
-        # logger.listener.mysignal.connect(self.logText)
-        # logger.listener.start()
-        pass
+        logger.listener.mysignal.connect(self.logText)
+        logger.listener.start()
+
+    @QtCore.pyqtSlot(str)
+    def logText(self, text):
+        self.mEdLog.moveCursor(QtGui.QTextCursor.End)
+        self.mEdLog.insertPlainText(text)
+
+    @QtCore.pyqtSlot()
+    def onClose(self):
+        self.done(0)
+
+    @QtCore.pyqtSlot()
+    def onClearLog(self):
+        self.mEdLog.clear()
+
+    @QtCore.pyqtSlot()
+    def onChooseDataFolder(self):
+        """Called when Choose button is pressed"""
+        pathStr = str(self.mEdDataFolder.text())
+        pathStr = QtGui.QFileDialog.getExistingDirectory(
+            self, 'Data folder', pathStr)
+        self.mEdDataFolder.setText(pathStr)
 
 
 if __name__ == '__main__':
@@ -89,4 +119,5 @@ if __name__ == '__main__':
     outLogger = OutLogger()
     mainDialog.setupLogger(outLogger)
     sys.stdout = outLogger
+    print('Done initialization.')
     ret = mainDialog.exec_()
