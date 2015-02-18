@@ -5,4 +5,5 @@ build
 *.swp
 .ropeproject
 unpack_speedup.c
+ui_*.py
 
