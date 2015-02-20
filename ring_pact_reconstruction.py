@@ -213,6 +213,8 @@ class Unpack:
         self.opts.src_dir = normpath(expanduser(self.opts.src_dir))
         self.opts.dest_dir = normpath(expanduser(join(self.opts.src_dir,
                                                       self.opts.dest_ext)))
+        self.chnData = None
+        self.chnData3D = None
 
     def readChannelData(self):
         # variable extraction
@@ -311,8 +313,9 @@ class Unpack:
 
     def unpack(self):
         self.readChannelData()
-        UnpackUtility.saveChnData(self.chnData, self.chnData3D,
-                                  self.opts.dest_dir, self.startInd)
+        if (self.chnData is not None) and (self.chnData3D is not None):
+            UnpackUtility.saveChnData(self.chnData, self.chnData3D,
+                                      self.opts.dest_dir, self.startInd)
 
 
 class ReconUtility:
