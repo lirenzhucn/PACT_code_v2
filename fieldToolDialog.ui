@@ -55,7 +55,11 @@
           </widget>
          </item>
          <item>
-          <widget class="QLineEdit" name="mEdIndex"/>
+          <widget class="QLineEdit" name="mEdIndex">
+           <property name="text">
+            <string>-1</string>
+           </property>
+          </widget>
          </item>
          <item>
           <spacer name="horizontalSpacer_8">
@@ -73,7 +77,11 @@
         </layout>
        </item>
        <item>
-        <widget class="QLineEdit" name="mEdDataFolder"/>
+        <widget class="QLineEdit" name="mEdDataFolder">
+         <property name="text">
+          <string>/home/liren/ShareInbox/PACT_data</string>
+         </property>
+        </widget>
        </item>
       </layout>
      </item>

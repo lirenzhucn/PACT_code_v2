@@ -181,5 +181,4 @@ if __name__ == '__main__':
     outLogger = OutLogger()
     mainDialog.setupLogger(outLogger)
     sys.stdout = outLogger
-    print('Done initialization.')
     ret = mainDialog.exec_()
