@@ -91,11 +91,22 @@ def makeOutputFileName(pattern, params):
     for key in params.keys():
         k = r'{' + key + r'}'
         if key == 'vm':
-            valString = '%.3f' % (params[key],)
+            # valString = '%.3f' % (params[key],)
+            valString = '{:.3f}'.format(params[key])
         elif key == 'spacing':
-            valString = '%.3f' % (params[key],)
+            # valString = '%.3f' % (params[key],)
+            valString = '{:.3f}'.format(params[key])
+        elif key == 'method':
+            valString = '{:}'.format(params[key])
+            if params['exact']:
+                valString = valString + '_exact'
+            if params['wiener']:
+                valString = valString + '_wiener'
+        elif key == 'exact' or key == 'wiener':
+            valString = ''
         else:
-            valString = '%s' % (params[key],)
+            # valString = '%s' % (params[key],)
+            valString = '{:}'.format(params[key])
         filename = filename.replace(k, valString)
     return filename
 
