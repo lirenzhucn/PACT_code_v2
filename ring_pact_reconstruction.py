@@ -420,6 +420,8 @@ class Reconstruction2D:
         (self.idxAll, self.angularWeight, self.totalAngularWeight) =\
             find_index_map_and_angular_weight(nSteps, xImg, yImg, xReceive,
                                               yReceive, delayIdx, vm, fs)
+        self.idxAll[self.idxAll > nSamples] = 1
+        self.idxAll[self.idxAll < 1] = 1
         # reconstructed image buffer
         self.reImg = np.zeros((nPixely, nPixelx, zSteps), order='F')
         # store parameters
@@ -471,7 +473,7 @@ class Reconstruction2D:
     def reconstruct(self, paData):
         if paData.ndim == 2:
             (nSamples, nSteps) = paData.shape
-            paData = np.reshape(paData, (nSamples, nSteps, 1))
+            paData = np.reshape(paData, (nSamples, nSteps, 1), order='F')
         self.initRecon(paData)
         if self.opts.wiener:
             print('Wiener filtering raw data...')

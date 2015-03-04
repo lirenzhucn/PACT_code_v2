@@ -140,7 +140,7 @@ def normalizeAndConvert(inData, dtype=None):
         return outData
 
 
-def reconstruct_workhorse(input_file, output_file, opts, timeit):
+def reconstruct_workhorse(input_file, output_file, opts, sliceNo, timeit):
     if opts.method == 'bipolar':
         recon = Reconstruction2D(opts)
     elif opts.method == 'unipolar-hilbert':
@@ -161,9 +161,18 @@ def reconstruct_workhorse(input_file, output_file, opts, timeit):
         f.close()
     elif in_format == 'npy':
         paData = np.load(input_file)
+        paData = paData.astype(np.float64)
     else:
         print('input format %s not supported' % in_format)
         return
+    if sliceNo is not None:
+        if sliceNo == 'mean':
+            print('reconstructing averaged')
+            paData = np.mean(paData, axis=2)
+        else:
+            sliceNo = int(sliceNo)
+            print('reconstructing slice #{:d}'.format(sliceNo))
+            paData = np.copy(paData[:, :, sliceNo], order='F')
     # reconstruction
     if timeit:
         startTime = time()
@@ -198,14 +207,16 @@ def reconstruct_workhorse(input_file, output_file, opts, timeit):
 @argh.arg('opts-file', type=str, help='option json file')
 @argh.arg('input-file', type=str, help='input raw data file')
 @argh.arg('output-file', type=str, help='output file name pattern')
+@argh.arg('-s', '--slice-no', type=str, help='select a slice to reconstruct')
 @argh.arg('-t', '--timeit', help='performance info')
-def reconstruct(opts_file, input_file, output_file, timeit=False):
+def reconstruct(opts_file, input_file, output_file,
+                slice_no=None, timeit=False):
     print('start reconstruction...')
     # read options and replace unspecified items by defaults
     with open(opts_file) as fid:
         opts = json.load(fid, object_pairs_hook=Options)
         print(json.dumps(opts.__dict__, indent=2))
-    reconstruct_workhorse(input_file, output_file, opts, timeit)
+    reconstruct_workhorse(input_file, output_file, opts, slice_no, timeit)
 
 
 @argh.arg('input-file', type=str, help='input raw data file')
