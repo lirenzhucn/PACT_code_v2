@@ -403,8 +403,8 @@ class Reconstruction2D:
                   - nPixely / 2) * ySize / nPixely + yCenter
         xImg = np.dot(np.ones((nPixely, 1)), xRange.reshape((1, nPixelx)))
         yImg = np.dot(yRange.reshape((nPixely, 1)), np.ones((1, nPixelx)))
-        # xImg = np.copy(xImg, order='F')
-        # yImg = np.copy(yImg, order='F')
+        xImg = np.copy(xImg, order='F')
+        yImg = np.copy(yImg, order='F')
         # receiver position
         detectorAngle = np.arange(0, nSteps, 1, dtype=np.double) *\
             anglePerStep + iniAngle/180.0*np.pi

@@ -159,9 +159,9 @@ def reconstruct_workhorse(input_file, output_file, opts, sliceNo, timeit):
         f = h5py.File(input_file, 'r')
         paData = np.array(f['chndata_all'], order='F')
         f.close()
+        print('Done loading.')
     elif in_format == 'npy':
         paData = np.load(input_file)
-        paData = paData.astype(np.float64)
     else:
         print('input format %s not supported' % in_format)
         return
@@ -173,6 +173,7 @@ def reconstruct_workhorse(input_file, output_file, opts, sliceNo, timeit):
             sliceNo = int(sliceNo)
             print('reconstructing slice #{:d}'.format(sliceNo))
             paData = np.copy(paData[:, :, sliceNo], order='F')
+    paData = paData.astype(np.float64)
     # reconstruction
     if timeit:
         startTime = time()
