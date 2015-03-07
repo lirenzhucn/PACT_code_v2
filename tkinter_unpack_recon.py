@@ -157,7 +157,7 @@ def reconstruct_workhorse(input_file, output_file, opts, sliceNo, timeit):
     # read out data
     if in_format == 'h5':
         f = h5py.File(input_file, 'r')
-        paData = np.array(f['chndata_all'], order='F')
+        paData = np.array(f['chndata_all'])
         f.close()
         print('Done loading.')
     elif in_format == 'npy':

@@ -434,14 +434,11 @@ class Reconstruction2D:
         self.initialized = True
 
     def backprojection(self, paData):
-        nSamples = self.nSamples
-        # nSteps = self.nSteps
+        # nSamples = self.nSamples
         zSteps = self.zSteps
-        # nPixelx = self.nPixelx
-        # nPixely = self.nPixely
-        self.idxAll[self.idxAll > nSamples] = 1
         # back-projection
         print('Back-projection starts...')
+        """
         for z in range(zSteps):
             # remove DC
             paDataDC = np.dot(np.ones((nSamples - 99, 1)),
@@ -449,26 +446,18 @@ class Reconstruction2D:
                                       axis=0).reshape((1, paData.shape[1])))
             paData[99:nSamples, :, z] = paData[99:nSamples, :, z] - paDataDC
         # speedup implementation
-        if 'linearInterpolation' in self.opts.__dict__.keys():
-            self.reImg =\
-                backproject_loop(paData, self.idxAll, self.angularWeight,
-                                 self.totalAngularWeight,
-                                 self.opts.linearInterpolation)
-        else:
-            self.reImg =\
-                backproject_loop(paData, self.idxAll, self.angularWeight,
-                                 self.totalAngularWeight)
+        self.reImg =\
+            backproject_loop(paData, self.idxAll, self.angularWeight,
+                             self.totalAngularWeight)
         """
         for z in range(zSteps):
             temp = np.copy(paData[:, :, z], order='F')
-            paImg = recon_loop(temp, self.idxAll, self.angularWeight,
-                               nPixelx, nPixely, nSteps)
+            paImg = recon_loop(temp, self.idxAll, self.angularWeight)
             if paImg is None:
                 print('WARNING: None returned as 2D reconstructed image!')
             paImg = paImg/self.totalAngularWeight
             self.reImg[:, :, z] = paImg
             ReconUtility.updateProgress(z+1, zSteps)
-        """
 
     def reconstruct(self, paData):
         if paData.ndim == 2:

@@ -28,11 +28,10 @@ static PyObject* recon_loop(PyObject* self, PyObject* args) {
   npy_double *pa_img;
 
   // extract argument tuple
-  if (!PyArg_ParseTuple(args, "O!O!O!iii",
+  if (!PyArg_ParseTuple(args, "O!O!O!",
   			&PyArray_Type, &p_pa_data,
   			&PyArray_Type, &p_idxAll,
-  			&PyArray_Type, &p_angularWeight,
-  			&nPixelx, &nPixely, &nSteps)) {
+  			&PyArray_Type, &p_angularWeight)) {
     return Py_None;
   }
 
@@ -47,6 +46,9 @@ static PyObject* recon_loop(PyObject* self, PyObject* args) {
     printf("%d, %d, %d\n", paDataValid, idxAllValid, angularWeightValid);
     goto fail;
   }
+  nPixely = PyArray_SHAPE(p_idxAll)[0];
+  nPixelx = PyArray_SHAPE(p_idxAll)[1];
+  nSteps = PyArray_SHAPE(p_idxAll)[2];
   dim_pa_img[0] = nPixely;
   dim_pa_img[1] = nPixelx;
   p_pa_img = PyArray_ZEROS(2, dim_pa_img, NPY_DOUBLE, 1);
