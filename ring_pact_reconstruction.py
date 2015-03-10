@@ -15,7 +15,7 @@ import sys
 
 from ring_pact_speedup import daq_loop, generateChanMap
 from ring_pact_speedup import recon_loop, find_index_map_and_angular_weight
-from ring_pact_speedup import backproject_loop
+# from ring_pact_speedup import backproject_loop
 from preprocess import subfunc_wiener, subfunc_exact
 
 

@@ -195,10 +195,15 @@ def reconstruct_workhorse(input_file, output_file, opts, sliceNo, timeit):
         print('converting into int16...')
         reImg = normalizeAndConvert(reImg, 'int16')
         print('saving image data to ' + output_file)
+        reImg = np.copy(reImg, order='C')
         tifffile.imsave(output_file, reImg)
     elif out_format == 'npy':
         print('saving image data to ' + output_file)
         np.save(output_file, reImg)
+    elif out_format == 'mat':
+        from scipy.io import savemat
+        print('saving image data to ' + output_file)
+        savemat(output_file, {'reImg': reImg})
     else:  # including 'fits'
         print('saving image data to ' + output_file)
         hdu = pyfits.PrimaryHDU(reImg)
