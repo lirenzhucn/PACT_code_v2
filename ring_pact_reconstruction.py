@@ -15,7 +15,7 @@ import sys
 
 from ring_pact_speedup import daq_loop, generateChanMap
 from ring_pact_speedup import recon_loop, find_index_map_and_angular_weight
-# from ring_pact_speedup import backproject_loop
+from ring_pact_speedup import backproject_loop
 from preprocess import subfunc_wiener, subfunc_exact
 
 
@@ -434,11 +434,10 @@ class Reconstruction2D:
         self.initialized = True
 
     def backprojection(self, paData):
-        # nSamples = self.nSamples
+        nSamples = self.nSamples
         zSteps = self.zSteps
         # back-projection
         print('Back-projection starts...')
-        """
         for z in range(zSteps):
             # remove DC
             paDataDC = np.dot(np.ones((nSamples - 99, 1)),
@@ -458,6 +457,7 @@ class Reconstruction2D:
             paImg = paImg/self.totalAngularWeight
             self.reImg[:, :, z] = paImg
             ReconUtility.updateProgress(z+1, zSteps)
+        """
 
     def reconstruct(self, paData):
         if paData.ndim == 2:
