@@ -551,11 +551,8 @@ class Reconstruction2DUnipolarMultiview(Reconstruction2D):
 
 
 from io import StringIO
-try:
-    import pycuda.driver as cuda
-    from pycuda.compiler import SourceModule
-except:
-    NO_CUDA = True
+import pycuda.driver as cuda
+from pycuda.compiler import SourceModule
 from time import time
 import os.path
 
@@ -704,6 +701,100 @@ class Reconstruction3D:
         et_all = time()
         totalTime = (et_all - st_all) / 60.0
         print('Total time elapsed: {:.2f} mins'.format(totalTime))
+        ctx.pop()
+        del ctx
+        return self.reImg
+
+
+class Reconstruction3DSingle(Reconstruction3D):
+
+    def reconstruct(self, paData):
+        # preprocess
+        if self.opts.wiener:
+            print('Wiener filtering raw data...')
+            paData = subfunc_wiener(paData)
+        if self.opts.exact:
+            print('Filtering raw data for exact reconstruction...')
+            paData = subfunc_exact(paData)
+        # initialize CUDA
+        cuda.init()
+        dev = cuda.Device(0)
+        ctx = dev.make_context()
+        # parameters
+        iniAngle = self.opts.iniAngle
+        vm = self.opts.vm
+        xSize = self.opts.xSize
+        ySize = self.opts.ySize
+        spacing = self.opts.spacing
+        xCenter = self.opts.xCenter
+        yCenter = self.opts.yCenter
+        fs = self.opts.fs
+        R = self.opts.R
+        lenR = self.opts.lenR
+        elementHeight = self.opts.elementHeight
+        # calculate delay indices
+        delayIdx = ReconUtility.findDelayIdx(paData[:, :, 0], fs)
+        delayIdx = delayIdx.astype(np.float32)
+        paData = paData.astype(np.float32)
+        nSamples, nSteps, zSteps = paData.shape
+        anglePerStep = 2 * np.pi / nSteps
+        nPixelx = int(round(xSize / spacing))
+        nPixely = int(round(ySize / spacing))
+        nPixelz = 1
+        # note range is 0-start indices
+        xRange = (np.arange(1, nPixelx + 1, 1, dtype=np.float32)
+                  - nPixelx / 2) * xSize / nPixelx + xCenter
+        yRange = (np.arange(nPixely, 0, -1, dtype=np.float32)
+                  - nPixely / 2) * ySize / nPixely + yCenter
+        zRange = np.array([0.0])
+        # receiver position
+        angleStep1 = iniAngle / 180.0 * np.pi
+        detectorAngle = np.arange(0, nSteps, 1, dtype=np.float32)\
+            * anglePerStep + angleStep1
+        xReceive = np.cos(detectorAngle) * R
+        yReceive = np.sin(detectorAngle) * R
+        # zReceive = np.array([0.0])
+        # create buffer on GPU for reconstructed image
+        self.reImg = np.zeros((nPixely, nPixelx, nPixelz),
+                              order='C', dtype=np.float32)
+        d_reImg = cuda.mem_alloc(self.reImg.nbytes)
+        cuda.memcpy_htod(d_reImg, self.reImg)
+        d_cosAlpha = cuda.mem_alloc(nPixely * nPixelx * nSteps * 4)
+        d_tempc = cuda.mem_alloc(nPixely * nPixelx * nSteps * 4)
+        d_paDataLine = cuda.mem_alloc(nSamples * 4)
+        # back projection loop
+        print('Reconstruction starting. Keep patient.')
+        d_xRange = cuda.mem_alloc(xRange.nbytes)
+        cuda.memcpy_htod(d_xRange, xRange)
+        d_yRange = cuda.mem_alloc(yRange.nbytes)
+        cuda.memcpy_htod(d_yRange, yRange)
+        d_zRange = cuda.mem_alloc(zRange.nbytes)
+        cuda.memcpy_htod(d_zRange, zRange)
+        d_xReceive = cuda.mem_alloc(xReceive.nbytes)
+        cuda.memcpy_htod(d_xReceive, xReceive)
+        d_yReceive = cuda.mem_alloc(yReceive.nbytes)
+        cuda.memcpy_htod(d_yReceive, yReceive)
+        # get module right before execution of function
+        MOD = SourceModule(open(self.KERNEL_CU_FILE, 'r').read())
+        precomp = MOD.get_function('calculate_cos_alpha_and_tempc')
+        bpk = MOD.get_function('backprojection_kernel_fast')
+        # compute cosAlpha and tempc
+        precomp(d_cosAlpha, d_tempc, d_xRange, d_yRange,
+                d_xReceive, d_yReceive, np.float32(lenR),
+                grid=(nPixelx, nPixely), block=(nSteps, 1, 1))
+        ctx.synchronize()
+        print('Done pre-computing cosAlpha and tempc.')
+        # loop over channels
+        for ni in range(nSteps):
+            cuda.memcpy_htod(d_paDataLine, paData[:, ni, 0])
+            bpk(d_reImg, d_paDataLine, d_cosAlpha, d_tempc,
+                d_zRange, np.float32(0), np.float32(lenR),
+                np.float32(elementHeight), np.float32(vm),
+                delayIdx[ni], np.float32(fs), np.uint32(ni),
+                np.uint32(nSteps), np.uint32(nSamples),
+                grid=(nPixelx, nPixely), block=(1, 1, 1))
+        cuda.memcpy_dtoh(self.reImg, d_reImg)
+        # clean up and return
         ctx.pop()
         del ctx
         return self.reImg

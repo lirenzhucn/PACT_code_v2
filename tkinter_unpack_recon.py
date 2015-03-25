@@ -8,6 +8,7 @@ from ring_pact_reconstruction import Reconstruction2D
 from ring_pact_reconstruction import Reconstruction2DUnipolarHilbert
 from ring_pact_reconstruction import Reconstruction2DUnipolarMultiview
 from ring_pact_reconstruction import Reconstruction3D
+from ring_pact_reconstruction import Reconstruction3DSingle
 import numpy as np
 from collections import OrderedDict
 
@@ -118,6 +119,7 @@ import argh
 from time import time
 import json
 import tifffile
+import hdf5storage as h5
 
 
 def normalizeAndConvert(inData, dtype=None):
@@ -149,6 +151,8 @@ def reconstruct_workhorse(input_file, output_file, opts, sliceNo, timeit):
         recon = Reconstruction2DUnipolarMultiview(opts)
     elif opts.method == 'bipolar-3d':
         recon = Reconstruction3D(opts)
+    elif opts.method == 'bipolar-3d-single':
+        recon = Reconstruction3DSingle(opts)
     else:
         print('method {:} not supported'.format(opts.method))
         return
@@ -162,6 +166,8 @@ def reconstruct_workhorse(input_file, output_file, opts, sliceNo, timeit):
         print('Done loading.')
     elif in_format == 'npy':
         paData = np.load(input_file)
+    elif in_format == 'mat':
+        paData = np.array(h5.loadmat(input_file)['chndata_all'], order='F')
     else:
         print('input format %s not supported' % in_format)
         return
