@@ -39,7 +39,8 @@ __global__ void backprojection_kernel_fast
   float cosAlpha = cosAlpha_[precompIdx];
   float tempc = tempc_[precompIdx];
   if (fabs(dz/tempc) < fabs(elementHeight*cosAlpha/2.0/lenR)) {
-    size_t imgIdx = zi + yi*blockDim.x + xi*blockDim.x*gridDim.y;
+    /*size_t imgIdx = zi + yi*blockDim.x + xi*blockDim.x*gridDim.y;*/
+    size_t imgIdx = zi + xi*blockDim.y + yi*blockDim.x*gridDim.y;
     float rr0 = sqrt(tempc*tempc + dz*dz)*SIGN(tempc) + lenR/cosAlpha;
     float angleWeightB = tempc/sqrt(tempc*tempc+dz*dz)*cosAlpha/(rr0*rr0);
     size_t idx0 = lround((rr0/vm-delayIdx)*fs);
