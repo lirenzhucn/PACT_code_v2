@@ -123,26 +123,31 @@ import hdf5storage as h5
 
 
 def normalizeAndConvert(inData, dtype=None):
-    outData = inData / np.max(np.abs(inData))
     if dtype is None:
+        outData = inData / np.max(np.abs(inData))
         return outData
     if dtype == 'uint8':
+        outData = (inData - np.min(inData)) / (np.max(inData) - np.min(inData))
         outData = outData * 255
         return outData.astype(np.uint8)
     elif dtype == 'int8':
+        outData = inData / np.max(np.abs(inData))
         outData = outData * 127
         return outData.astype(np.int8)
     elif dtype == 'uint16':
+        outData = (inData - np.min(inData)) / (np.max(inData) - np.min(inData))
         outData = outData * 65535
         return outData.astype(np.uint16)
     elif dtype == 'int16':
+        outData = inData / np.max(np.abs(inData))
         outData = outData * 32767
         return outData.astype(np.int16)
     else:
         return outData
 
 
-def reconstruct_workhorse(input_file, output_file, opts, sliceNo, timeit):
+def reconstruct_workhorse(input_file, output_file, opts,
+                          sliceNo, timeit, dtype):
     if opts.method == 'bipolar':
         recon = Reconstruction2D(opts)
     elif opts.method == 'unipolar-hilbert':
@@ -198,8 +203,8 @@ def reconstruct_workhorse(input_file, output_file, opts, sliceNo, timeit):
         f['reImg'] = reImg
         f.close()
     elif out_format == 'tiff' or out_format == 'lsm':
-        print('converting into int16...')
-        reImg = normalizeAndConvert(reImg, 'int16')
+        print('converting into {:}...'.format(dtype))
+        reImg = normalizeAndConvert(reImg, dtype)
         print('saving image data to ' + output_file)
         reImg = np.copy(reImg, order='C')
         tifffile.imsave(output_file, reImg)
@@ -221,14 +226,16 @@ def reconstruct_workhorse(input_file, output_file, opts, sliceNo, timeit):
 @argh.arg('output-file', type=str, help='output file name pattern')
 @argh.arg('-s', '--slice-no', type=str, help='select a slice to reconstruct')
 @argh.arg('-t', '--timeit', help='performance info')
+@argh.arg('-d', '--dtype', type=str, help='data type for conversion')
 def reconstruct(opts_file, input_file, output_file,
-                slice_no=None, timeit=False):
+                slice_no=None, timeit=False, dtype='int16'):
     print('start reconstruction...')
     # read options and replace unspecified items by defaults
     with open(opts_file) as fid:
         opts = json.load(fid, object_pairs_hook=Options)
         print(json.dumps(opts.__dict__, indent=2))
-    reconstruct_workhorse(input_file, output_file, opts, slice_no, timeit)
+    reconstruct_workhorse(input_file, output_file, opts,
+                          slice_no, timeit, dtype)
 
 
 @argh.arg('input-file', type=str, help='input raw data file')
