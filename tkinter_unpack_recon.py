@@ -179,7 +179,7 @@ def reconstruct_workhorse(input_file, output_file, opts,
     if sliceNo is not None:
         if sliceNo == 'mean':
             print('reconstructing averaged')
-            paData = np.mean(paData, axis=2)
+            paData = np.array(np.mean(paData, axis=2), order='F')
         else:
             sliceNo = int(sliceNo)
             print('reconstructing slice #{:d}'.format(sliceNo))
