@@ -80,7 +80,7 @@ void backproject_loop_imp(const double *paData, const double *idxAll,
     const double *angularWeight, const double *totalAngularWeight,
     int nPixelx, int nPixely, int zSteps, int nSteps, int nSamples,
     int linearInterpolation, double *paImg) {
-  int z, ind;
+  long z, ind;
 #pragma omp parallel for
   for (z = 0; z < zSteps; z++) {
     const double *paDataPointer = paData + z*nSamples*nSteps;

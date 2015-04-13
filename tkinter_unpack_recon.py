@@ -97,6 +97,8 @@ def makeOutputFileName(pattern, params):
         elif key == 'spacing':
             # valString = '%.3f' % (params[key],)
             valString = '{:.3f}'.format(params[key])
+        elif key == 'delay':
+            valString = '{:.3f}'.format(params[key])
         elif key == 'method':
             valString = '{:}'.format(params[key])
             if params['exact']:
@@ -172,7 +174,7 @@ def reconstruct_workhorse(input_file, output_file, opts,
     elif in_format == 'npy':
         paData = np.load(input_file)
     elif in_format == 'mat':
-        paData = np.array(h5.loadmat(input_file)['chndata_all'], order='F')
+        paData = np.array(h5.loadmat(input_file)['data3'], order='F')
     else:
         print('input format %s not supported' % in_format)
         return
@@ -209,6 +211,8 @@ def reconstruct_workhorse(input_file, output_file, opts,
         reImg = np.copy(reImg, order='C')
         tifffile.imsave(output_file, reImg)
     elif out_format == 'npy':
+        print('converting into {:}...'.format(dtype))
+        reImg = normalizeAndConvert(reImg, dtype)
         print('saving image data to ' + output_file)
         np.save(output_file, reImg)
     elif out_format == 'mat':
