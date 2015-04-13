@@ -207,6 +207,8 @@ def reconstruct_workhorse(input_file, output_file, opts,
     elif out_format == 'tiff' or out_format == 'lsm':
         print('converting into {:}...'.format(dtype))
         reImg = normalizeAndConvert(reImg, dtype)
+        # make image viewable for TIFF viewers
+        reImg = reImg.transpose((2, 0, 1))
         print('saving image data to ' + output_file)
         reImg = np.copy(reImg, order='C')
         tifffile.imsave(output_file, reImg)
