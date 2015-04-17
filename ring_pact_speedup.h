@@ -86,7 +86,6 @@ void init_progress_parallel(const int _totalCount) {
 
 void add_progress_parallel(void) {
     float progress;
-#pragma omp atomic write
     count = count + 1;
     progress = (float)count / (float)totalCount;
     fprintf(stdout, "\r[%5.1f %%]", progress * 100.0);
@@ -118,7 +117,10 @@ void backproject_loop_imp(const double *paData, const double *idxAll,
     for (ind = 0; ind < nPixely*nPixelx; ind++) {
       paImgPointer[ind] /= totalAngularWeight[ind];
     }
-    add_progress_parallel();
+#pragma omp critical
+    {
+        add_progress_parallel();
+    }
   }
 }
 
