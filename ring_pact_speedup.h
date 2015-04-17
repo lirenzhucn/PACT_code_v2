@@ -76,11 +76,32 @@ void recon_loop_linear_interpolation
   }
 }
 
+static int totalCount = 0;
+static int count = 0;
+
+void init_progress_parallel(const int _totalCount) {
+    count = 0;
+    totalCount = _totalCount;
+}
+
+void add_progress_parallel(void) {
+    float progress;
+#pragma omp atomic write
+    count = count + 1;
+    progress = (float)count / (float)totalCount;
+    fprintf(stdout, "\r[%5.1f %%]", progress * 100.0);
+    if (count >= totalCount) {
+        fprintf(stdout, "\n");
+    }
+    fflush(stdout);
+}
+
 void backproject_loop_imp(const double *paData, const double *idxAll,
     const double *angularWeight, const double *totalAngularWeight,
     int nPixelx, int nPixely, int zSteps, int nSteps, int nSamples,
     int linearInterpolation, double *paImg) {
   long z, ind;
+  init_progress_parallel(zSteps);
 #pragma omp parallel for
   for (z = 0; z < zSteps; z++) {
     const double *paDataPointer = paData + z*nSamples*nSteps;
@@ -97,6 +118,7 @@ void backproject_loop_imp(const double *paData, const double *idxAll,
     for (ind = 0; ind < nPixely*nPixelx; ind++) {
       paImgPointer[ind] /= totalAngularWeight[ind];
     }
+    add_progress_parallel();
   }
 }
 
