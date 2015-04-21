@@ -9,6 +9,7 @@ from ring_pact_reconstruction import Reconstruction2DUnipolarHilbert
 from ring_pact_reconstruction import Reconstruction2DUnipolarMultiview
 from ring_pact_reconstruction import Reconstruction3D
 from ring_pact_reconstruction import Reconstruction3DSingle
+from ring_pact_reconstruction import ReconUtility
 import numpy as np
 from collections import OrderedDict
 
@@ -124,6 +125,10 @@ import tifffile
 import hdf5storage as h5
 
 
+def sliceVolumeRead(folder):
+    pass
+
+
 def normalizeAndConvert(inData, dtype=None):
     if dtype is None:
         outData = inData / np.max(np.abs(inData))
@@ -148,6 +153,63 @@ def normalizeAndConvert(inData, dtype=None):
         return outData
 
 
+def readData(input_file, sliceNo):
+    if os.path.isdir(input_file):
+        fl = [os.path.join(input_file, f)
+              for f in os.listdir(input_file)
+              if os.path.isfile(os.path.join(input_file, f))]
+        print('{:} is a directory.'.format(input_file))
+        if sliceNo is not None:
+            if sliceNo == 'mean':
+                # read each file and average
+                data0 = np.load(fl[0])
+                data0 = np.zeros(data0.shape, dtype=np.float64, order='F')
+                for f in fl:
+                    data0 = data0 + np.load(f)
+                paData = data0 / len(fl)
+            else:
+                sliceNo = int(sliceNo)
+                paData = np.load(os.path.join(input_file,
+                                              '{:06d}.npy'.format(sliceNo)))
+                paData = paData.astype(np.float64)
+        else:
+            fl = sorted(fl)
+            data0 = np.load(fl[0])
+            paData = np.zeros((data0.shape[0], data0.shape[1], len(fl)),
+                              dtype=np.float64, order='F')
+            for i in range(len(fl)):
+                f = fl[i]
+                paData[:, :, i] = np.load(f)
+                ReconUtility.updateProgress(i+1, len(fl))
+    else:
+        (basename, ext) = os.path.splitext(input_file)
+        in_format = ext[1:]
+        # read out data
+        if in_format == 'h5':
+            print('Reading data from {:}'.format(input_file))
+            f = h5py.File(input_file, 'r')
+            paData = np.array(f['data'], order='F')
+            f.close()
+            print('Done loading.')
+        elif in_format == 'npy':
+            paData = np.load(input_file)
+        elif in_format == 'mat':
+            paData = np.array(h5.loadmat(input_file)['data3'], order='F')
+        else:
+            print('input format %s not supported' % in_format)
+            return
+        if sliceNo is not None:
+            if sliceNo == 'mean':
+                print('reconstructing averaged')
+                paData = np.array(np.mean(paData, axis=2), order='F')
+            else:
+                sliceNo = int(sliceNo)
+                print('reconstructing slice #{:d}'.format(sliceNo))
+                paData = np.copy(paData[:, :, sliceNo], order='F')
+        paData = paData.astype(np.float64)
+    return paData
+
+
 def reconstruct_workhorse(input_file, output_file, opts,
                           sliceNo, timeit, dtype):
     if opts.method == 'bipolar':
@@ -163,31 +225,7 @@ def reconstruct_workhorse(input_file, output_file, opts,
     else:
         print('method {:} not supported'.format(opts.method))
         return
-    (basename, ext) = os.path.splitext(input_file)
-    in_format = ext[1:]
-    # read out data
-    if in_format == 'h5':
-        print('Reading data from {:}'.format(input_file))
-        f = h5py.File(input_file, 'r')
-        paData = np.array(f['data'], order='F')
-        f.close()
-        print('Done loading.')
-    elif in_format == 'npy':
-        paData = np.load(input_file)
-    elif in_format == 'mat':
-        paData = np.array(h5.loadmat(input_file)['data3'], order='F')
-    else:
-        print('input format %s not supported' % in_format)
-        return
-    if sliceNo is not None:
-        if sliceNo == 'mean':
-            print('reconstructing averaged')
-            paData = np.array(np.mean(paData, axis=2), order='F')
-        else:
-            sliceNo = int(sliceNo)
-            print('reconstructing slice #{:d}'.format(sliceNo))
-            paData = np.copy(paData[:, :, sliceNo], order='F')
-    paData = paData.astype(np.float64)
+    paData = readData(input_file, sliceNo)
     # reconstruction
     if timeit:
         startTime = time()
