@@ -94,7 +94,7 @@ def makeOutputFileName(pattern, params):
         k = r'{' + key + r'}'
         if key == 'vm':
             # valString = '%.3f' % (params[key],)
-            valString = '{:.3f}'.format(params[key])
+            valString = '{:.4f}'.format(params[key])
         elif key == 'spacing':
             # valString = '%.3f' % (params[key],)
             valString = '{:.3f}'.format(params[key])
@@ -210,6 +210,57 @@ def readData(input_file, sliceNo):
     return paData
 
 
+@argh.arg('slice_no', type=int, help='Slice number for testing.')
+@argh.arg('vm_range', type=float, nargs='+',
+          help='Speed of sound range.')
+@argh.arg('-s', '--step', type=float, help='Screen step size')
+def screenspeed(input_file, output_file, opts_file, slice_no,
+                vm_range, step=0.001):
+    '''
+    Similar to reconstruct, with a required slice number and
+    fixed unsigned int 8-bit data type (uint8)
+    '''
+    dtype = 'uint8'
+    with open(opts_file) as fid:
+        opts = json.load(fid, object_pairs_hook=Options)
+        print(json.dumps(opts.__dict__, indent=2))
+    if opts.method == 'bipolar':
+        recon = Reconstruction2D(opts)
+    elif opts.method == 'unipolar-hilbert':
+        recon = Reconstruction2DUnipolarHilbert(opts)
+    elif opts.method == 'unipolar-multiview':
+        recon = Reconstruction2DUnipolarMultiview(opts)
+    else:
+        print('method {:} not supported'.format(opts.method))
+        return
+    paData = readData(input_file, slice_no)
+    (basename, ext) = os.path.splitext(output_file)
+    out_format = ext[1:]
+    if out_format == '':
+        output_file = output_file + '.tiff'
+    if out_format != 'tiff':
+        print('Output format must be tiff')
+        return
+    output_template = output_file
+    for vm in list(np.arange(vm_range[0], vm_range[1], step)):
+        print('testing vm = {:.4f} ...'.format(vm))
+        recon.opts.vm = vm
+        recon.initialized = False
+        output_file = makeOutputFileName(output_template,
+                                         recon.opts.__dict__)
+        dirname = os.path.dirname(input_file)
+        output_file = os.path.join(dirname, output_file)
+        # reconstruction
+        reImg = recon.reconstruct(paData)
+        reImg = normalizeAndConvert(reImg, dtype)
+        # make image viewable for TIFF viewers
+        reImg = reImg.transpose((2, 0, 1))
+        print('saving image data to ' + output_file)
+        reImg = np.copy(reImg, order='C')
+        tifffile.imsave('slice_{:}_{:}'.format(slice_no, output_file),
+                        reImg)
+
+
 def reconstruct_workhorse(input_file, output_file, opts,
                           sliceNo, timeit, dtype):
     if opts.method == 'bipolar':
@@ -322,4 +373,5 @@ def unpack_scan(src_dir, min_ind, max_ind):
 
 
 if __name__ == '__main__':
-    argh.dispatch_commands((unpack, unpack_scan, reconstruct, reconstruct_gui))
+    argh.dispatch_commands((unpack, unpack_scan, reconstruct,
+                            reconstruct_gui, screenspeed))
