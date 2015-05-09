@@ -242,7 +242,7 @@ def screenspeed(input_file, output_file, opts_file, slice_no,
         print('Output format must be tiff')
         return
     output_template = output_file
-    for vm in list(np.arange(vm_range[0], vm_range[1], step)):
+    for vm in list(np.arange(vm_range[0], vm_range[1]+0.5*step, step)):
         print('testing vm = {:.4f} ...'.format(vm))
         recon.opts.vm = vm
         recon.initialized = False
