@@ -213,14 +213,18 @@ def readData(input_file, sliceNo):
 
 
 @argh.arg('slice_no', type=int, help='Slice number for testing.')
-@argh.arg('vm_range', type=float, nargs='+', help='Speed of sound range.')
-@argh.arg('-s', '--step', type=float, help='Screen step size')
+@argh.arg('vm_range_str', type=str, help='Speed of sound range.')
+@argh.arg('-vs', '--vm-step', type=float, help='Screen step size')
 def screenspeed(input_file, output_file, opts_file, slice_no,
-                vm_range, step=0.001):
+                vm_range_str, delay_range_str,
+                vm_step=0.001, delay_step=0.025):
     '''
     Similar to reconstruct, with a required slice number and
     fixed unsigned int 8-bit data type (uint8)
     '''
+    # process vm_range string first
+    vm_range = sorted([float(v) for v in vm_range_str.split()])
+    delay_range = sorted([float(d) for d in delay_range_str.split()])
     dtype = 'uint8'
     with open(opts_file) as fid:
         opts = json.load(fid, object_pairs_hook=Options)
@@ -243,22 +247,28 @@ def screenspeed(input_file, output_file, opts_file, slice_no,
         print('Output format must be tiff')
         return
     output_template = output_file
-    for vm in list(np.arange(vm_range[0], vm_range[1]+0.5*step, step)):
-        print('testing vm = {:.4f} ...'.format(vm))
-        recon.opts.vm = vm
-        recon.initialized = False
-        output_file = makeOutputFileName(output_template,
-                                         recon.opts.__dict__)
-        # dirname = os.path.dirname(input_file)
-        # output_file = os.path.join(dirname, output_file)
-        # reconstruction
-        reImg = recon.reconstruct(paData)
-        reImg = normalizeAndConvert(reImg, dtype)
-        # make image viewable for TIFF viewers
-        reImg = reImg.transpose((2, 0, 1))
-        print('saving image data to ' + output_file)
-        reImg = np.copy(reImg, order='C')
-        tifffile.imsave('slice_{:}_{:}'.format(slice_no, output_file), reImg)
+    for delay in list(np.arange(delay_range[0],
+                                delay_range[1] + 0.5*delay_step,
+                                delay_step)):
+        recon.opts.delay = delay
+        for vm in list(np.arange(vm_range[0], vm_range[1]+0.5*vm_step,
+                                 vm_step)):
+            print('testing vm = {:.4f} ...'.format(vm))
+            recon.opts.vm = vm
+            recon.initialized = False
+            output_file = makeOutputFileName(output_template,
+                                             recon.opts.__dict__)
+            # dirname = os.path.dirname(input_file)
+            # output_file = os.path.join(dirname, output_file)
+            # reconstruction
+            reImg = recon.reconstruct(paData)
+            reImg = normalizeAndConvert(reImg, dtype)
+            # make image viewable for TIFF viewers
+            reImg = reImg.transpose((2, 0, 1))
+            print('saving image data to ' + output_file)
+            reImg = np.copy(reImg, order='C')
+            tifffile.imsave(
+                'slice_{:}_{:}'.format(slice_no, output_file), reImg)
 
 
 def reconstruct_workhorse(input_file, output_file, opts,
