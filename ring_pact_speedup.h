@@ -131,7 +131,7 @@ void find_index_map_and_angular_weight_imp
  double *idxAll, double *angularWeight, double *totalAngularWeight) {
   int n, i;
   double r0, rr0, dx, dy, cosAlpha;
-#pragma omp parallel for private(r0, rr0, dx, dy, cosAlpha)
+#pragma omp parallel for private(r0, rr0, dx, dy, cosAlpha, n, i)
   for (n=0; n<nSteps; n++) {
     r0 = sqrt(xReceive[n]*xReceive[n] + yReceive[n]*yReceive[n]);
     for (i=0; i<nSize2D; i++) {

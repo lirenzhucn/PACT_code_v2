@@ -149,8 +149,10 @@ def normalizeAndConvert(inData, dtype=None):
         outData = inData / np.max(np.abs(inData))
         outData = outData * 32767
         return outData.astype(np.int16)
+    elif dtype == 'single':
+        return inData.astype(np.float32)
     else:
-        return outData
+        return inData
 
 
 def readData(input_file, sliceNo):
@@ -211,8 +213,7 @@ def readData(input_file, sliceNo):
 
 
 @argh.arg('slice_no', type=int, help='Slice number for testing.')
-@argh.arg('vm_range', type=float, nargs='+',
-          help='Speed of sound range.')
+@argh.arg('vm_range', type=float, nargs='+', help='Speed of sound range.')
 @argh.arg('-s', '--step', type=float, help='Screen step size')
 def screenspeed(input_file, output_file, opts_file, slice_no,
                 vm_range, step=0.001):
@@ -248,8 +249,8 @@ def screenspeed(input_file, output_file, opts_file, slice_no,
         recon.initialized = False
         output_file = makeOutputFileName(output_template,
                                          recon.opts.__dict__)
-        dirname = os.path.dirname(input_file)
-        output_file = os.path.join(dirname, output_file)
+        # dirname = os.path.dirname(input_file)
+        # output_file = os.path.join(dirname, output_file)
         # reconstruction
         reImg = recon.reconstruct(paData)
         reImg = normalizeAndConvert(reImg, dtype)
@@ -257,8 +258,7 @@ def screenspeed(input_file, output_file, opts_file, slice_no,
         reImg = reImg.transpose((2, 0, 1))
         print('saving image data to ' + output_file)
         reImg = np.copy(reImg, order='C')
-        tifffile.imsave('slice_{:}_{:}'.format(slice_no, output_file),
-                        reImg)
+        tifffile.imsave('slice_{:}_{:}'.format(slice_no, output_file), reImg)
 
 
 def reconstruct_workhorse(input_file, output_file, opts,
@@ -324,7 +324,7 @@ def reconstruct_workhorse(input_file, output_file, opts,
 @argh.arg('-t', '--timeit', help='performance info')
 @argh.arg('-d', '--dtype', type=str, help='data type for conversion')
 def reconstruct(opts_file, input_file, output_file,
-                slice_no=None, timeit=False, dtype='int16'):
+                slice_no=None, timeit=False, dtype='double'):
     print('start reconstruction...')
     # read options and replace unspecified items by defaults
     with open(opts_file) as fid:
