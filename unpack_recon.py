@@ -170,10 +170,25 @@ def readData(input_file, sliceNo):
                     data0 = data0 + np.load(f)
                 paData = data0 / len(fl)
             else:
-                sliceNo = int(sliceNo)
-                paData = np.load(os.path.join(input_file,
-                                              '{:06d}.npy'.format(sliceNo)))
-                paData = paData.astype(np.float64)
+                try:
+                    sliceNo = int(sliceNo)
+                    paData = np.load(
+                        os.path.join(input_file,
+                                     '{:06d}.npy'.format(sliceNo)))
+                    paData = paData.astype(np.float64)
+                except ValueError:  # assuming a list was given
+                    sliceNo = sorted([int(v) for v in sliceNo.split()])
+                    data0 = np.load(
+                        os.path.join(input_file,
+                                     '{:06d}.npy'.format(sliceNo[0])))
+                    paData = np.zeros((data0.shape[0], data0.shape[1],
+                                       sliceNo[1] - sliceNo[0]),
+                                      dtype=np.float64, order='F')
+                    paData[:, :, 0] = data0
+                    for ind in range(sliceNo[0] + 1, sliceNo[1]):
+                        paData[:, :, ind - sliceNo[0]] =\
+                            np.load(os.path.join(input_file,
+                                                 '{:06d}.npy'.format(ind)))
         else:
             fl = sorted(fl)
             data0 = np.load(fl[0])
@@ -195,6 +210,7 @@ def readData(input_file, sliceNo):
             print('Done loading.')
         elif in_format == 'npy':
             paData = np.load(input_file)
+            paData = np.copy(paData, order='F')
         elif in_format == 'mat':
             paData = np.array(h5.loadmat(input_file)['data3'], order='F')
         else:
