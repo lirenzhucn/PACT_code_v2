@@ -22,15 +22,15 @@ RECON_OPTS_DICT = OrderedDict([
     ('iniAngle', 225.0),  # degrees
     ('spacing', 0.05),  # mm
     # scanning geometry and parameters
-    ('R', 25.0),  # mm, scanning radius
+    ('R', 52.0),  # mm, scanning radius
     ('fs', 40.0),  # MHz, sampling rate
     # other tunables
-    ('vm', 1.510),  # mm/us, speed of sound
+    ('vm', 1.500),  # mm/us, speed of sound
     # preprocess flags
     ('exact', False),
     ('wiener', False),
-    ('autoDelay', True),
-    ('delay', 6.0),  # us
+    ('autoDelay', False),
+    ('delay', -3.6),  # us
     ('method', 'bipolar'),  # method string
 ])
 
