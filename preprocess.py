@@ -138,3 +138,27 @@ def subfunc_exact(padata):
     tSeq.resize((nSamples, 1, 1))
     diff = tSeq * np.real(fftpack.ifft(spectrum * freq, axis=0))
     return padata - diff
+
+
+def remove_stripes(data, windowHalfSize=4, out=None):
+    '''Try to remove stripes noises in each quarter
+    '''
+    if out is None:
+        out = np.zeros_like(data)
+    QSIZE = 128
+    QNUM = 4
+    windowHalfSize = 4
+    F = np.zeros(QSIZE)
+    F[QSIZE//2-windowHalfSize:QSIZE//2+windowHalfSize] =\
+        np.hanning(windowHalfSize*2)
+    F = 1 - F
+    if data.ndim == 2:
+        F = F.reshape((1, QSIZE))
+    elif data.ndim == 3:
+        F = F.reshape((1, QSIZE, 1))
+    for q in range(QNUM):
+        D = np.fft.fftshift(np.fft.fft(data[:, q*QSIZE:(q+1)*QSIZE],
+                                       axis=1), axes=1)
+        out[:, q*QSIZE:(q+1)*QSIZE] =\
+            np.fft.ifft(np.fft.ifftshift(D*F, axes=1), axis=1).real
+    return out
