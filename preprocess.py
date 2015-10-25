@@ -147,7 +147,6 @@ def remove_stripes(data, windowHalfSize=4, out=None):
         out = np.zeros_like(data)
     QSIZE = 128
     QNUM = 4
-    windowHalfSize = 4
     F = np.zeros(QSIZE)
     F[QSIZE//2-windowHalfSize:QSIZE//2+windowHalfSize] =\
         np.hanning(windowHalfSize*2)
@@ -157,8 +156,8 @@ def remove_stripes(data, windowHalfSize=4, out=None):
     elif data.ndim == 3:
         F = F.reshape((1, QSIZE, 1))
     for q in range(QNUM):
-        D = np.fft.fftshift(np.fft.fft(data[:, q*QSIZE:(q+1)*QSIZE],
-                                       axis=1), axes=1)
+        D = fftpack.fftshift(fftpack.fft(data[:, q*QSIZE:(q+1)*QSIZE],
+                                         axis=1), axes=1)
         out[:, q*QSIZE:(q+1)*QSIZE] =\
-            np.fft.ifft(np.fft.ifftshift(D*F, axes=1), axis=1).real
+            fftpack.ifft(fftpack.ifftshift(D*F, axes=1), axis=1).real
     return out
