@@ -212,7 +212,8 @@ def readData(input_file, sliceNo):
             paData = np.load(input_file)
             paData = np.copy(paData, order='F')
         elif in_format == 'mat':
-            paData = np.array(h5.loadmat(input_file)['data3'], order='F')
+            variableName = input('Variable in mat: ')
+            paData = np.array(h5.loadmat(input_file)[variableName], order='F')
         else:
             print('input format %s not supported' % in_format)
             return
