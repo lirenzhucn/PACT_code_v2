@@ -399,6 +399,15 @@ def unpack_scan(src_dir, min_ind, max_ind):
     unpack.unpack()
 
 
+@argh.arg('folder', type=str, help='folder location to place the option file')
+@argh.arg('-f', '--filename', type=str, help='output file name')
+def genopts(folder, filename='opts.json'):
+    opts = RECON_OPTS_DICT
+    with open(os.path.join(folder, filename), 'w') as f:
+        f.write(json.dumps(opts, indent=2))
+        f.write('\n')
+
+
 if __name__ == '__main__':
     argh.dispatch_commands((unpack, unpack_scan, reconstruct,
-                            reconstruct_gui, screenspeed))
+                            reconstruct_gui, screenspeed, genopts))
